@@ -1,0 +1,11 @@
+[package]
+name = "foobar" # the name of the package
+version = "0.1.0"    # the current version, obeying semver
+authors = ["..."]
+edition = "2021"
+
+[dependencies]
+widestring = "0.2.2"
+log = "0.4"
+winapi = { version = "0.3.9", features = [ "winuser", "winnt", "memoryapi", "processthreadsapi", "libloaderapi", "handleapi" ] }
+dll_hook = { path = "./src/lib/dll_hook" }
