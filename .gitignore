@@ -6,12 +6,14 @@
 # having git ignore such leftovers. You can use `.git/info/exclude` to
 # configure your local ignore list.
 
+*.dll
+*.exe
+
 ## File system
 .DS_Store
 desktop.ini
 
 ## Editor
-*.dll
 *.swp
 *.swo
 Session.vim
