@@ -21,7 +21,7 @@ struct FunctionPtrAddress {
 lazy_static! {
     static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress {
         addy: unsafe {
-            std::mem::transmute::<usize, createmove_fn>(0x004111d6)
+            std::mem::transmute::<usize, createmove_fn>(0x00b9b09c)
         }
     };
 }
