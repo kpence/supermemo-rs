@@ -23,4 +23,6 @@ features = [
   "minwindef",
   "errhandlingapi",
   "processenv",
+  "synchapi",
+  "psapi",
 ]

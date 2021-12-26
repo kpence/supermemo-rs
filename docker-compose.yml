@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  wine:
+    build:
+      context: .
+      cache_from:
+        - scottyhardy/docker-wine:latest
+    command: wine /main.exe #wine /ConsoleApplication1.exe
+    volumes:
+      - "winehome:/home/wineuser"
+volumes:
+  winehome:

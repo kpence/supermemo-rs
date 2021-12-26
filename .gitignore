@@ -11,6 +11,7 @@
 desktop.ini
 
 ## Editor
+*.dll
 *.swp
 *.swo
 Session.vim
@@ -36,6 +37,7 @@ config.stamp
 no_llvm_build
 
 ## Build
+**/target/**
 /dl/
 /doc/
 /inst/
