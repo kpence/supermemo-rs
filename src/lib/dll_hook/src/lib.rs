@@ -18,15 +18,19 @@ struct FnPtrAddress<T> {
     address: T,
 }
 
-trait FnSig {
+trait Function {
     type FnSig;
 }
 
-trait FromAddress<F> where F: FnSig {
+trait DetourHook {
+    fn hook_detour() -> Result<()>;
+}
+
+trait FromAddress<F> where F: Function {
     fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig>;
 }
 
-impl<F> FromAddress<F> for F where F: FnSig {
+impl<F> FromAddress<F> for F where F: Function {
     fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig> {
         FnPtrAddress::<F::FnSig> {
             address: unsafe { std::mem::transmute_copy::<u32, F::FnSig>(&func_address) }
@@ -34,10 +38,43 @@ impl<F> FromAddress<F> for F where F: FnSig {
     }
 }
 
+impl DetourHook for EntryPointFn {
+    fn hook_detour() -> Result<()> {
+
+        let closure_for_createmove = || {
+            println!("heres the detour. put your code in here");
+        
+            //println!("...");
+            //std::thread::sleep(std::time::Duration::from_secs(1));
+            //println!(".");
+            //println!("DONE SLEEPING");
+            //return unsafe {
+            //    CreateMoveDetour.call(i)
+            //}
+            //let result = unsafe { (TEST_FN_PTR)(0.0,0.0,0.0) };
+            //println!("result: {}", result);
+            //let result = unsafe { (TEST_FN_PTR)(1.0,1.0,1.0) };
+            //println!("result: {}", result);
+            std::process::exit(0)
+        };  
+
+        let hook = unsafe { 
+            CreateMoveDetour.initialize(ENTRY_POINT_FN_PTR.address, closure_for_createmove).unwrap()
+            //TestDetour.initialize(TEST_DETOUR_FN_PTR, closure_for_createmove).unwrap()
+        };
+
+        unsafe {
+            hook.enable().unwrap();
+        }
+
+        Ok(())
+    }
+}
+
 macro_rules! impl_fn_ptr {
     ($S:ident, $F:ty) => {
         struct $S { }
-        impl FnSig for $S {
+        impl Function for $S {
             type FnSig = $F;
         }
     };
@@ -47,15 +84,14 @@ impl_fn_ptr!(TestFn, unsafe extern "C" fn(f64, f64, f64) -> f64);
 impl_fn_ptr!(TestDetourFn, unsafe extern "C" fn(u8) -> f64);
 impl_fn_ptr!(EntryPointFn, fn());
 
-
 static_detour! {
     static CreateMoveDetour: fn();
     static TestDetour: unsafe extern "C" fn(u8) -> f64;
 }
 
 lazy_static! {
-    static ref ENTRY_POINT_FN_PTR: FnPtrAddress<<EntryPointFn as FnSig>::FnSig> = EntryPointFn::from_address(0x00b23340);
-    static ref TEST_FN_PTR: FnPtrAddress<<TestFn as FnSig>::FnSig> = TestFn::from_address(0x008ae4cc);
+    static ref ENTRY_POINT_FN_PTR: FnPtrAddress<<EntryPointFn as Function>::FnSig> = EntryPointFn::from_address(0x00b23340);
+    static ref TEST_FN_PTR: FnPtrAddress<<TestFn as Function>::FnSig> = TestFn::from_address(0x008ae4cc);
 }
 
 //let unit177_sub_008ae4cc_short_math = unsafe { example!(0x008ae4cc, extern "C" fn()) };
@@ -125,32 +161,8 @@ fn init() {
     println!("Initializing..");
     // TODO Make it so you encapsulate this closure using traits, make a trait for function
     // addreses for whether they have detours
-
-    let closure_for_createmove = || {
-        println!("heres the detour. put your code in here");
     
-        //println!("...");
-        //std::thread::sleep(std::time::Duration::from_secs(1));
-        //println!(".");
-        //println!("DONE SLEEPING");
-        //return unsafe {
-        //    CreateMoveDetour.call(i)
-        //}
-        //let result = unsafe { (TEST_FN_PTR)(0.0,0.0,0.0) };
-        //println!("result: {}", result);
-        //let result = unsafe { (TEST_FN_PTR)(1.0,1.0,1.0) };
-        //println!("result: {}", result);
-        std::process::exit(0)
-    };  
-
-    let hook = unsafe { 
-        CreateMoveDetour.initialize(ENTRY_POINT_FN_PTR.address, closure_for_createmove).unwrap()
-        //TestDetour.initialize(TEST_DETOUR_FN_PTR, closure_for_createmove).unwrap()
-    };
-
-    unsafe {
-        hook.enable().unwrap();
-    }
+    <EntryPointFn as DetourHook>::hook_detour().unwrap();
 
     println!("Hook enabled..");
 }
