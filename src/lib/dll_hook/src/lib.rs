@@ -18,24 +18,8 @@ struct FnPtrAddress<T> {
     address: T,
 }
 
-trait Function {
-    type FnSig;
-}
-
 trait DetourHook {
     fn hook_detour() -> Result<()>;
-}
-
-trait FromAddress<F> where F: Function {
-    fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig>;
-}
-
-impl<F> FromAddress<F> for F where F: Function {
-    fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig> {
-        FnPtrAddress::<F::FnSig> {
-            address: unsafe { std::mem::transmute_copy::<u32, F::FnSig>(&func_address) }
-        }
-    }
 }
 
 impl DetourHook for TestDetour2Fn {
@@ -116,11 +100,10 @@ macro_rules! impl_fn_ptr {
     };
     ($S:ident, $ST:ident, $F:ty, $ADDR:expr) => {
         struct $S { }
-        impl Function for $S {
-            type FnSig = $F;
-        }
         lazy_static! {
-            static ref $ST: FnPtrAddress<<$S as Function>::FnSig> = $S::from_address($ADDR);
+            static ref $ST: FnPtrAddress<$F> = FnPtrAddress::<$F> {
+                address: unsafe { std::mem::transmute_copy::<u32, $F>(&$ADDR) }
+            };
         }
     };
 }
