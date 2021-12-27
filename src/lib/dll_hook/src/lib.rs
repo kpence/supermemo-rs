@@ -82,14 +82,6 @@ impl DetourHook for EntryPointFn {
     fn hook_detour() -> Result<()> {
         let closure_detour = || {
             println!("heres the detour. put your code in here");
-        
-            //println!("...");
-            //std::thread::sleep(std::time::Duration::from_secs(1));
-            //println!(".");
-            //println!("DONE SLEEPING");
-            //return unsafe {
-            //    CreateMoveDetour.call(i)
-            //}
             let result = unsafe { (TEST_FN_PTR.address)(0.0,0.0,0.0) };
             println!("result: {}", result);
             let result = unsafe { (TEST_FN_PTR.address)(1.0,1.0,1.0) };
@@ -146,14 +138,6 @@ impl_fn_ptr!(TestDetourFn, TEST_DETOUR_FN_PTR, TestDetour, fn(u8) -> f64, 0x008b
 impl_fn_ptr!(TestDetour2Fn, TEST_DETOUR2_FN_PTR, TestDetour2, fn(u8) -> f64, 0x008b03b8);
 impl_fn_ptr!(Test2Fn, TEST2_FN_PTR, fn(u8, u8) -> f64, 0x008b0630);
 impl_fn_ptr!(EntryPointFn, ENTRY_POINT_FN_PTR, EntryPointDetour, fn(), 0x00b23340);
-
-//let unit177_sub_008ae4cc_short_math = unsafe { example!(0x008ae4cc, extern "C" fn()) };
-//static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress::from_address(0x00401000);
-// 0x004111d6
-
-// language thing 0x004324dc 0x00432448 0x00432588 0x0042e49c* 0x0042e548- 0x00b2eec4*
-// 0x00b23340*
-// entry point 0x00b9b09c   0x00b9b0be
 
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
@@ -212,8 +196,6 @@ fn init() {
         kernel32::AllocConsole() 
     };
     println!("Initializing..");
-    // TODO Make it so you encapsulate this closure using traits, make a trait for function
-    // addreses for whether they have detours
     
     <EntryPointFn as DetourHook>::hook_detour().unwrap();
     <TestDetourFn as DetourHook>::hook_detour().unwrap();
