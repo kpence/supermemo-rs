@@ -51,10 +51,10 @@ impl DetourHook for EntryPointFn {
             //return unsafe {
             //    CreateMoveDetour.call(i)
             //}
-            //let result = unsafe { (TEST_FN_PTR)(0.0,0.0,0.0) };
-            //println!("result: {}", result);
-            //let result = unsafe { (TEST_FN_PTR)(1.0,1.0,1.0) };
-            //println!("result: {}", result);
+            let result = unsafe { (TEST_FN_PTR.address)(0.0,0.0,0.0) };
+            println!("result: {}", result);
+            let result = unsafe { (TEST_FN_PTR.address)(1.0,1.0,1.0) };
+            println!("result: {}", result);
             std::process::exit(0)
         };  
 
@@ -72,26 +72,30 @@ impl DetourHook for EntryPointFn {
 }
 
 macro_rules! impl_fn_ptr {
+    ($S:ident, $ST:ident, $F:ty, $ADDR:expr) => {
+        impl_fn_ptr!($S, $F);
+        impl_fn_ptr!($S, $ST, $ADDR);
+    };
     ($S:ident, $F:ty) => {
         struct $S { }
         impl Function for $S {
             type FnSig = $F;
         }
     };
+    ($S:ident, $ST:ident, $ADDR:expr) => {
+        lazy_static! {
+            static ref $ST: FnPtrAddress<<$S as Function>::FnSig> = $S::from_address($ADDR);
+        }
+    };
 }
 
-impl_fn_ptr!(TestFn, unsafe extern "C" fn(f64, f64, f64) -> f64);
+impl_fn_ptr!(TestFn, TEST_FN_PTR, unsafe extern "C" fn(f64, f64, f64) -> f64, 0x008ae4cc);
 impl_fn_ptr!(TestDetourFn, unsafe extern "C" fn(u8) -> f64);
-impl_fn_ptr!(EntryPointFn, fn());
+impl_fn_ptr!(EntryPointFn, ENTRY_POINT_FN_PTR, fn(), 0x00b23340);
 
 static_detour! {
     static CreateMoveDetour: fn();
     static TestDetour: unsafe extern "C" fn(u8) -> f64;
-}
-
-lazy_static! {
-    static ref ENTRY_POINT_FN_PTR: FnPtrAddress<<EntryPointFn as Function>::FnSig> = EntryPointFn::from_address(0x00b23340);
-    static ref TEST_FN_PTR: FnPtrAddress<<TestFn as Function>::FnSig> = TestFn::from_address(0x008ae4cc);
 }
 
 //let unit177_sub_008ae4cc_short_math = unsafe { example!(0x008ae4cc, extern "C" fn()) };
