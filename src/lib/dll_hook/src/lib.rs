@@ -10,58 +10,61 @@ use detour::*;
 use std::{ffi::CString, iter};
 use winapi::ctypes::c_int;
 
-type test_fn = unsafe extern "C" fn(f64, f64, f64) -> f64;
-type createmove_fn = fn();
-
 struct UserCmd {
     /* dscode here */
 }
 
-struct FunctionPtrAddress2 {
-    address: test_fn,
+struct FnPtrAddress<T> {
+    address: T,
 }
 
-struct FunctionPtrAddress {
-    address: createmove_fn,
+trait FnSig {
+    type FnSig;
 }
 
-impl FunctionPtrAddress {
-    pub fn from_address(func_address: u32) -> FunctionPtrAddress {
-        FunctionPtrAddress {
-            address: unsafe {
-                std::mem::transmute::<usize, createmove_fn>(func_address as usize)
-            }
+trait FromAddress<F> where F: FnSig {
+    fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig>;
+}
+
+impl<F> FromAddress<F> for F where F: FnSig {
+    fn from_address(func_address: u32) -> FnPtrAddress<F::FnSig> {
+        FnPtrAddress::<F::FnSig> {
+            address: unsafe { std::mem::transmute_copy::<u32, F::FnSig>(&func_address) }
         }
     }
 }
 
-impl FunctionPtrAddress2 {
-    pub fn from_address(func_address: u32) -> FunctionPtrAddress2 {
-        FunctionPtrAddress2 {
-            address: unsafe {
-                std::mem::transmute::<usize, test_fn>(func_address as usize)
-            }
+macro_rules! impl_fn_ptr {
+    ($S:ident, $F:ty) => {
+        struct $S { }
+        impl FnSig for $S {
+            type FnSig = $F;
         }
-    }
+    };
+}
+
+impl_fn_ptr!(TestFn, unsafe extern "C" fn(f64, f64, f64) -> f64);
+impl_fn_ptr!(TestDetourFn, unsafe extern "C" fn(u8) -> f64);
+impl_fn_ptr!(EntryPointFn, fn());
+
+
+static_detour! {
+    static CreateMoveDetour: fn();
+    static TestDetour: unsafe extern "C" fn(u8) -> f64;
+}
+
+lazy_static! {
+    static ref ENTRY_POINT_FN_PTR: FnPtrAddress<<EntryPointFn as FnSig>::FnSig> = EntryPointFn::from_address(0x00b23340);
+    static ref TEST_FN_PTR: FnPtrAddress<<TestFn as FnSig>::FnSig> = TestFn::from_address(0x008ae4cc);
 }
 
 //let unit177_sub_008ae4cc_short_math = unsafe { example!(0x008ae4cc, extern "C" fn()) };
 //static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress::from_address(0x00401000);
 // 0x004111d6
 
-// language thing 0x004324dc 0x00432448 0x00432588 0x0042e49c*
-// 0x0042e548- 0x00b2eec4*
+// language thing 0x004324dc 0x00432448 0x00432588 0x0042e49c* 0x0042e548- 0x00b2eec4*
 // 0x00b23340*
 // entry point 0x00b9b09c   0x00b9b0be
-
-lazy_static! {
-    static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress::from_address(0x00b23340);
-    static ref test_fn_ptrs: FunctionPtrAddress2 = FunctionPtrAddress2::from_address(0x008ae4cc);
-}
-
-static_detour! {
-    static CreateMoveDetour: fn();
-}
 
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
@@ -120,6 +123,9 @@ fn init() {
         kernel32::AllocConsole() 
     };
     println!("Initializing..");
+    // TODO Make it so you encapsulate this closure using traits, make a trait for function
+    // addreses for whether they have detours
+
     let closure_for_createmove = || {
         println!("heres the detour. put your code in here");
     
@@ -130,16 +136,16 @@ fn init() {
         //return unsafe {
         //    CreateMoveDetour.call(i)
         //}
-        let result = unsafe { (test_fn_ptrs.address)(0.0,0.0,0.0) };
-        println!("result: {}", result);
-        let result = unsafe { (test_fn_ptrs.address)(1.0,1.0,1.0) };
-        println!("result: {}", result);
+        //let result = unsafe { (TEST_FN_PTR)(0.0,0.0,0.0) };
+        //println!("result: {}", result);
+        //let result = unsafe { (TEST_FN_PTR)(1.0,1.0,1.0) };
+        //println!("result: {}", result);
         std::process::exit(0)
     };  
 
     let hook = unsafe { 
-        let address: createmove_fn = fn_ptrs.address;
-        CreateMoveDetour.initialize(address, closure_for_createmove).unwrap()
+        CreateMoveDetour.initialize(ENTRY_POINT_FN_PTR.address, closure_for_createmove).unwrap()
+        //TestDetour.initialize(TEST_DETOUR_FN_PTR, closure_for_createmove).unwrap()
     };
 
     unsafe {
