@@ -18,85 +18,11 @@ struct FnPtrAddress<T> {
     address: T,
 }
 
-trait DetourHook {
-    fn hook_detour() -> Result<()>;
-}
-
-impl DetourHook for TestDetour2Fn {
-    fn hook_detour() -> Result<()> {
-        let closure_detour = |param1: u8| {
-            println!("Detour for TestDetourFN2: param1: ({})", param1);
-            //unsafe { (TEST_DETOUR2_FN_PTR.address)(param1) }
-            1000.0
-        };  
-
-        let hook = unsafe { 
-            TestDetour2.initialize(TEST_DETOUR2_FN_PTR.address, closure_detour).unwrap()
-        };
-
-        unsafe {
-            hook.enable().unwrap();
-        }
-
-        Ok(())
-    }
-}
-
-impl DetourHook for TestDetourFn {
-    fn hook_detour() -> Result<()> {
-        let closure_detour = |param1: u8| {
-            println!("Detour for TestDetourFN: param1: ({})", param1);
-            //unsafe { (TEST_DETOUR_FN_PTR.address)(param1) }
-            19.0
-        };  
-
-        let hook = unsafe { 
-            TestDetour.initialize(TEST_DETOUR_FN_PTR.address, closure_detour).unwrap()
-        };
-
-        unsafe {
-            hook.enable().unwrap();
-        }
-
-        Ok(())
-    }
-}
-
-impl DetourHook for EntryPointFn {
-    fn hook_detour() -> Result<()> {
-        let closure_detour = || {
-            println!("heres the detour. put your code in here");
-            let result = unsafe { (TEST_FN_PTR.address)(0.0,0.0,0.0) };
-            println!("result: {}", result);
-            let result = unsafe { (TEST_FN_PTR.address)(1.0,1.0,1.0) };
-            println!("result: {}", result);
-            let result = unsafe { (TEST_FN_PTR.address)(5.0,1.5,1.5) };
-            println!("result: {}", result);
-            for i in 1..100 {
-                for j in 0..2 {
-                    let result = unsafe { (TEST2_FN_PTR.address)(i, j) };
-                    println!("F({}, {}) result: {}", i, j, result);
-                }
-            }
-            std::process::exit(0)
-        };  
-
-        let hook = unsafe { 
-            EntryPointDetour.initialize(ENTRY_POINT_FN_PTR.address, closure_detour).unwrap()
-        };
-
-        unsafe {
-            hook.enable().unwrap();
-        }
-
-        Ok(())
-    }
-}
-
 macro_rules! impl_fn_ptr {
-    ($S:ident, $ST:ident, $D: ident, fn($($FARGS:tt)*) $(-> $FRET:ty)?, $ADDR:expr) => {
+    ($S:ident, $ST:ident, $D: ident, fn($($FARGS:tt)*) $(-> $FRET:ty)?, $ADDR:expr, $C:expr) => {
         impl_fn_ptr!($S, $ST, unsafe extern "C" fn($($FARGS)*) $(-> $FRET)?, $ADDR);
         static_detour! { static $D: unsafe extern "C" fn($($FARGS)*) $(-> $FRET)?; }
+        unsafe { $D.initialize($ST.address, $C).unwrap().enable().unwrap() };
     };
     ($S:ident, $ST:ident, $F:ty, $ADDR:expr) => {
         struct $S { }
@@ -107,12 +33,6 @@ macro_rules! impl_fn_ptr {
         }
     };
 }
-
-impl_fn_ptr!(TestFn, TEST_FN_PTR, fn(f64, f64, f64) -> f64, 0x008ae4cc);
-impl_fn_ptr!(TestDetourFn, TEST_DETOUR_FN_PTR, TestDetour, fn(u8) -> f64, 0x008b0530);
-impl_fn_ptr!(TestDetour2Fn, TEST_DETOUR2_FN_PTR, TestDetour2, fn(u8) -> f64, 0x008b03b8);
-impl_fn_ptr!(Test2Fn, TEST2_FN_PTR, fn(u32, u8) -> f64, 0x008b0630);
-impl_fn_ptr!(EntryPointFn, ENTRY_POINT_FN_PTR, EntryPointDetour, fn(), 0x00b23340);
 
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
@@ -172,9 +92,42 @@ fn init() {
     };
     println!("Initializing..");
     
-    <EntryPointFn as DetourHook>::hook_detour().unwrap();
-    <TestDetourFn as DetourHook>::hook_detour().unwrap();
-    <TestDetour2Fn as DetourHook>::hook_detour().unwrap();
+    impl_fn_ptr!(TestFn, TEST_FN_PTR, fn(f64, f64, f64) -> f64, 0x008ae4cc);
+    impl_fn_ptr!(TestDetourFn, TEST_DETOUR_FN_PTR, TestDetour, fn(u8) -> f64, 0x008b0530,
+        |param1: u8| {
+            println!("Detour for TestDetourFN: param1: ({})", param1);
+            //unsafe { (TEST_DETOUR_FN_PTR.address)(param1) }
+            19.0
+        }
+    );
+
+    impl_fn_ptr!(TestDetour2Fn, TEST_DETOUR2_FN_PTR, TestDetour2, fn(u8) -> f64, 0x008b03b8,
+        |param1: u8| {
+            println!("Detour for TestDetourFN2: param1: ({})", param1);
+            //unsafe { (TEST_DETOUR2_FN_PTR.address)(param1) }
+            1000.0
+        }
+    );
+    impl_fn_ptr!(Test2Fn, TEST2_FN_PTR, fn(u32, u8) -> f64, 0x008b0630);
+    impl_fn_ptr!(EntryPointFn, ENTRY_POINT_FN_PTR, EntryPointDetour, fn(), 0x00b23340,
+        || {
+            println!("heres the detour. put your code in here");
+            let result = unsafe { (TEST_FN_PTR.address)(0.0,0.0,0.0) };
+            println!("result: {}", result);
+            let result = unsafe { (TEST_FN_PTR.address)(1.0,1.0,1.0) };
+            println!("result: {}", result);
+            let result = unsafe { (TEST_FN_PTR.address)(5.0,1.5,1.5) };
+            println!("result: {}", result);
+            for i in 1..100 {
+                for j in 0..2 {
+                    let result = unsafe { (TEST2_FN_PTR.address)(i, j) };
+                    println!("F({}, {}) result: {}", i, j, result);
+                }
+            }
+            std::process::exit(0)
+        }
+    );
+
 
     println!("Hook enabled..");
 }
