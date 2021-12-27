@@ -59,7 +59,6 @@ grep -q "^${USER_NAME}:" /etc/passwd || useradd --shell /bin/bash --uid "${USER_
 
 # TODO Added specifically for this project
 cp /hook.dll ${USER_HOME}/.wine/drive_c/users/wineuser
-cp /hook64.dll ${USER_HOME}/.wine/drive_c/users/wineuser
 cp /target.exe ${USER_HOME}/.wine/drive_c/users/wineuser
 cp /lib*.dll ${USER_HOME}/.wine/drive_c/users/wineuser
 export RUST_BACKTRACE=1

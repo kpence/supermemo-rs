@@ -7,28 +7,62 @@ extern crate kernel32;
 extern crate libc;
 
 use detour::*;
+use std::{ffi::CString, iter};
+use winapi::ctypes::c_int;
 
-type createmove_fn = fn(f32, *mut UserCmd) -> bool;
+type test_fn = unsafe extern "C" fn(f64, f64, f64) -> f64;
+type createmove_fn = fn();
 
 struct UserCmd {
     /* dscode here */
 }
 
-struct FunctionPtrAddress {
-    addy: createmove_fn
+struct FunctionPtrAddress2 {
+    address: test_fn,
 }
 
-lazy_static! {
-    static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress {
-        addy: unsafe {
-            std::mem::transmute::<usize, createmove_fn>(0x00b9b09c)
+struct FunctionPtrAddress {
+    address: createmove_fn,
+}
+
+impl FunctionPtrAddress {
+    pub fn from_address(func_address: u32) -> FunctionPtrAddress {
+        FunctionPtrAddress {
+            address: unsafe {
+                std::mem::transmute::<usize, createmove_fn>(func_address as usize)
+            }
         }
-    };
+    }
+}
+
+impl FunctionPtrAddress2 {
+    pub fn from_address(func_address: u32) -> FunctionPtrAddress2 {
+        FunctionPtrAddress2 {
+            address: unsafe {
+                std::mem::transmute::<usize, test_fn>(func_address as usize)
+            }
+        }
+    }
+}
+
+//let unit177_sub_008ae4cc_short_math = unsafe { example!(0x008ae4cc, extern "C" fn()) };
+//static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress::from_address(0x00401000);
+// 0x004111d6
+
+// language thing 0x004324dc 0x00432448 0x00432588 0x0042e49c*
+// 0x0042e548- 0x00b2eec4*
+// 0x00b23340*
+// entry point 0x00b9b09c   0x00b9b0be
+
+lazy_static! {
+    static ref fn_ptrs: FunctionPtrAddress = FunctionPtrAddress::from_address(0x00b23340);
+    static ref test_fn_ptrs: FunctionPtrAddress2 = FunctionPtrAddress2::from_address(0x008ae4cc);
 }
 
 static_detour! {
-    static CreateMoveDetour: fn(f32, *mut UserCmd) -> bool;
+    static CreateMoveDetour: fn();
 }
+
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
 };
@@ -36,7 +70,7 @@ use winapi::um::winnt::{
     DLL_PROCESS_DETACH, DLL_PROCESS_ATTACH, DLL_THREAD_ATTACH, DLL_THREAD_DETACH
 };
 use winapi::um::libloaderapi::{
-    DisableThreadLibraryCalls
+    DisableThreadLibraryCalls,
 };
 use winapi::um::winuser::{
     MessageBoxW, MB_OK
@@ -69,7 +103,10 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
     DLL_PROCESS_DETACH => {
       println!("Remove from main process.");
     }
-    DLL_PROCESS_ATTACH => init(),
+    DLL_PROCESS_ATTACH => {
+        DisableThreadLibraryCalls(hinst);
+        init()
+    },
     DLL_THREAD_ATTACH => {}
     DLL_THREAD_DETACH => {}
     _ => {}
@@ -82,32 +119,33 @@ fn init() {
     unsafe { 
         kernel32::AllocConsole() 
     };
-
-    println!("Initializing...");
-
-    let closure_for_createmove = |input_sample_time, cmd| {
+    println!("Initializing..");
+    let closure_for_createmove = || {
         println!("heres the detour. put your code in here");
-
-        std::thread::sleep(std::time::Duration::from_secs(30));
     
-        //return (fn_ptrs.addy)(input_sample_time, cmd);
-        return true;
+        //println!("...");
+        //std::thread::sleep(std::time::Duration::from_secs(1));
+        //println!(".");
+        //println!("DONE SLEEPING");
+        //return unsafe {
+        //    CreateMoveDetour.call(i)
+        //}
+        let result = unsafe { (test_fn_ptrs.address)(0.0,0.0,0.0) };
+        println!("result: {}", result);
+        let result = unsafe { (test_fn_ptrs.address)(1.0,1.0,1.0) };
+        println!("result: {}", result);
+        std::process::exit(0)
     };  
 
-    let mut hook = unsafe { 
-        CreateMoveDetour.initialize(createmove_hook, closure_for_createmove).unwrap() 
+    let hook = unsafe { 
+        let address: createmove_fn = fn_ptrs.address;
+        CreateMoveDetour.initialize(address, closure_for_createmove).unwrap()
     };
 
     unsafe {
         hook.enable().unwrap();
     }
 
-    createmove_hook(1.0, std::ptr::null_mut()); // call this so hook.call works
-    hook.call(100.0, std::ptr::null_mut());
+    println!("Hook enabled..");
 }
 
-fn createmove_hook(input_sample_time: f32, cmd: *mut UserCmd) -> bool {
-    println!("original function");
-
-    return true;//(fn_ptrs.addy)(input_sample_time, cmd);
-}

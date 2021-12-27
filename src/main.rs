@@ -8,7 +8,7 @@ use std::ffi::CString;
 
 use winapi::um::winnt::HANDLE;
 use winapi::um::errhandlingapi as werror;
-use winapi::um::winbase::CREATE_NO_WINDOW;
+use winapi::um::winbase::{INFINITE, CREATE_NO_WINDOW};
 use winapi::um::memoryapi as wmem;
 use winapi::um::processthreadsapi as wproc;
 use winapi::um::psapi;
@@ -134,12 +134,10 @@ pub fn inject(proc: HANDLE, dll: &Path) -> io::Result<()> {
                                   Some(mem::transmute(loadlib)),
                                   dll_addr, 0, ptr::null_mut())
     };
-    std::thread::sleep(std::time::Duration::from_millis(100));
 
     werr!(hthread.is_null());
     println!("spawned remote thread @ {:?}", hthread);
     unsafe {
-        //synchapi::WaitForSingleObject(hthread, winapi::um::winbase::INFINITE);
         synchapi::WaitForSingleObject(hthread, 10000);
 
         // the next few line are for checking which dlls are being used by the target process
@@ -175,11 +173,13 @@ fn main() {
                 Ok(_) => println!("Maybe successful injection"),
                 Err(e) => panic!("Error in inject function: {}", e)
             }
+            unsafe {
+                synchapi::WaitForSingleObject(handle, INFINITE);
+            }
         },
         Err(e) => {
             panic!("Opening process failed somehow. Error: {}", e)
         },
     }
-    std::thread::sleep(std::time::Duration::from_secs(10));
-    ()
+    println!("Exiting main program.");
 }
