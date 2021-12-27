@@ -24,7 +24,7 @@ macro_rules! impl_fn_ptr {
         struct $S { }
         lazy_static! {
             static ref $ST: FnPtrAddress<$F> = FnPtrAddress::<$F> {
-                address: unsafe { std::mem::transmute_copy::<u32, $F>(&$ADDR) }
+                address: unsafe { std::mem::transmute::<u32, $F>($ADDR) }
             };
         }
     };
