@@ -10,10 +10,6 @@ use detour::*;
 use std::{ffi::CString, iter};
 use winapi::ctypes::c_int;
 
-struct UserCmd {
-    /* dscode here */
-}
-
 struct FnPtrAddress<T> {
     address: T,
 }
@@ -127,7 +123,6 @@ fn init() {
             std::process::exit(0)
         }
     );
-
 
     println!("Hook enabled..");
 }
