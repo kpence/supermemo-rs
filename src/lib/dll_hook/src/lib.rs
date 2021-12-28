@@ -12,18 +12,19 @@ use winapi::ctypes::c_int;
 
 macro_rules! hook {
     (
-        $FN_PTR_CONTAINER:ident,
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         fn($($FARGS:tt)*) $(-> $FRET:ty)?,
-        $ADDR:expr, $DETOUR:expr
+        $DETOUR:expr
     ) => {
-        hook!($FN_PTR_CONTAINER, unsafe extern "C" fn($($FARGS)*) $(-> $FRET)?, $ADDR);
+        hook!($ADDR, $FN_PTR_NAME, unsafe extern "C" fn($($FARGS)*) $(-> $FRET)?);
         static_detour! { static $DETOUR_NAME: unsafe extern "C" fn($($FARGS)*) $(-> $FRET)?; }
-        unsafe { $DETOUR_NAME.initialize(*$FN_PTR_CONTAINER, $DETOUR).unwrap().enable().unwrap() };
+        unsafe { $DETOUR_NAME.initialize(*$FN_PTR_NAME, $DETOUR).unwrap().enable().unwrap() };
     };
-    ($FN_PTR_CONTAINER:ident, $FN_SIGNATURE:ty, $ADDR:expr) => {
+    ($ADDR:expr, $FN_PTR_NAME:ident, $FN_SIGNATURE:ty) => {
         lazy_static! {
-            static ref $FN_PTR_CONTAINER: $FN_SIGNATURE =
+            static ref $FN_PTR_NAME: $FN_SIGNATURE =
                 unsafe { std::mem::transmute::<u32, $FN_SIGNATURE>($ADDR) };
         }
     };
@@ -85,34 +86,37 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    hook!(TEST_FN_PTR, fn(f64, f64, f64) -> f64, 0x008ae4cc);
-    hook!(TEST_DETOUR_FN_PTR, TestDetour, fn(u8) -> f64, 0x008b0530,
+    hook!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
+    hook!(0x008b0530, TEST_DETOUR_FN_PTR, TestDetour,
+          fn(u8) -> f64,
         |param1| {
             println!("Detour for TestDetourFN: param1: ({})", param1);
             //unsafe { (TEST_DETOUR_FN_PTR)(param1) }
             19.0
         }
     );
-    hook!(TEST_DETOUR2_FN_PTR, TestDetour2, fn(u8) -> f64, 0x008b03b8,
-        |param1| {
+    hook!(0x008b03b8, TEST_DETOUR2_FN_PTR, TestDetour2,
+          fn(u8, u8, u8, u8) -> f64,
+        |param1, param2, param3, param4| {
             println!("Detour for TestDetourFN2: param1: ({})", param1);
             //unsafe { (TEST_DETOUR2_FN_PTR)(param1) }
             1000.0
         }
     );
-    hook!(TEST2_FN_PTR, fn(u32, u8) -> f64, 0x008b0630);
-    hook!(ENTRY_POINT_FN_PTR, EntryPointDetour, fn(), 0x00b23340,
+    hook!(0x008b0630, TEST2_FN_PTR, fn(u32, u8) -> f64);
+    hook!(0x00b23340, ENTRY_POINT_FN_PTR, EntryPointDetour,
+          fn(),
         || {
             println!("heres the detour. put your code in here");
-            let result: f64 = unsafe { (TEST_FN_PTR)(0.0,0.0,0.0) };
+            let result: f64 = unsafe { (*TEST_FN_PTR)(0.0,0.0,0.0) };
             println!("result: {}", result);
-            let result: f64 = unsafe { (TEST_FN_PTR)(1.0,1.0,1.0) };
+            let result: f64 = unsafe { (*TEST_FN_PTR)(1.0,1.0,1.0) };
             println!("result: {}", result);
-            let result: f64 = unsafe { (TEST_FN_PTR)(5.0,1.5,1.5) };
+            let result: f64 = unsafe { (*TEST_FN_PTR)(5.0,1.5,1.5) };
             println!("result: {}", result);
             for i in 1..100 {
                 for j in 0..2 {
-                    let result = unsafe { (TEST2_FN_PTR)(i, j) };
+                    let result = unsafe { (*TEST2_FN_PTR)(i, j) };
                     println!("F({}, {}) result: {}", i, j, result);
                 }
             }
