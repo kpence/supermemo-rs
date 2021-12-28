@@ -47,21 +47,6 @@ use std::ptr::null_mut;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt as _;
 
-fn show_message_box(caption: &str, text: &str) {
-    fn wide_string(s: &str) -> Vec<u16> {
-        OsStr::new(s).encode_wide().chain(Some(0)).collect()
-    }
-
-    unsafe{
-        MessageBoxW(
-            null_mut() as _,
-            wide_string(text).as_ptr() as _,
-            wide_string(caption).as_ptr() as _,
-            MB_OK
-        );
-    }
-}
-
 // define dllmain to handle the init action
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -72,7 +57,7 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
     }
     DLL_PROCESS_ATTACH => {
         DisableThreadLibraryCalls(hinst);
-        unsafe {kernel32::AllocConsole()};
+        kernel32::AllocConsole();
         init()
     },
     DLL_THREAD_ATTACH => {}
@@ -91,7 +76,7 @@ fn init() {
           fn(u8) -> f64,
         |param1| {
             println!("Detour for TestDetourFN: param1: ({})", param1);
-            //unsafe { (TEST_DETOUR_FN_PTR)(param1) }
+            //(*TEST_DETOUR_FN_PTR)(param1)
             19.0
         }
     );
@@ -99,7 +84,7 @@ fn init() {
           fn(u8, u8, u8, u8) -> f64,
         |param1, param2, param3, param4| {
             println!("Detour for TestDetourFN2: param1: ({})", param1);
-            //unsafe { (TEST_DETOUR2_FN_PTR)(param1) }
+            //(*TEST_DETOUR2_FN_PTR)(param1)
             1000.0
         }
     );
@@ -108,15 +93,15 @@ fn init() {
           fn(),
         || {
             println!("heres the detour. put your code in here");
-            let result: f64 = unsafe { (*TEST_FN_PTR)(0.0,0.0,0.0) };
+            let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
             println!("result: {}", result);
-            let result: f64 = unsafe { (*TEST_FN_PTR)(1.0,1.0,1.0) };
+            let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
             println!("result: {}", result);
-            let result: f64 = unsafe { (*TEST_FN_PTR)(5.0,1.5,1.5) };
+            let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
             println!("result: {}", result);
             for i in 1..100 {
                 for j in 0..2 {
-                    let result = unsafe { (*TEST2_FN_PTR)(i, j) };
+                    let result = (*TEST2_FN_PTR)(i, j);
                     println!("F({}, {}) result: {}", i, j, result);
                 }
             }
