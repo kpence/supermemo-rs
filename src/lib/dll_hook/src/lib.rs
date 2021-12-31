@@ -6,7 +6,9 @@ extern crate winapi;
 extern crate kernel32;
 extern crate libc;
 use delphi::*;
+use structs::*;
 mod delphi;
+mod structs;
 
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
@@ -49,27 +51,35 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    hijack!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, GET_OPTIMIZATION_DATA_DETOUR, GetOptimizationDataTrampoline,
+    hijack!(0x00950f80, GET_OPTIMIZATION_DATA, GetOptimizationData,
             (param1: i32, param2: i32, param3: i32) -> i32 {
                 println!("Detour for GetOptimizationDataFN: param1: ({} {} {})", param1, param2, param3);
                 0
             }
     );
-    hijack!(0x00955488, ALGORITHM_OUTCOMES_FN_PTR, ALGORITHM_OUTCOMES_DETOUR, AlgorithmOutcomesTrampoline,
+    hijack!(0x008b09d8, COMPUTE_REPETITION_PARAMETERS, ComputeRepetitionParameters,
+            (param1: i32, param2: i32, param3: i32) -> i32 {
+                println!("Detour for GetOptimizationDataFN: param1: ({} {} {})", param1, param2, param3);
+                0
+            }
+    );
+    hijack!(0x00955488, ALGORITHM_OUTCOMES, AlgorithmOutcomes,
             (param1: i32, param2: i32, param3: i32, param4: i32) -> f64 {
                 println!("Detour for AlgorithmOutcomesFN: param1: ({} {} {} {})", param1, param2, param3, param4);
                 1000.0
             }
     );
+    //unsafe { (*ALGORITHM_OUTCOMES).detour.disable().unwrap() };
+
     foreign_fn!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
 
-    hijack!(0x008b0530, TEST_DETOUR_FN_PTR, TEST_DETOUR, TestDetourTrampoline,
+    hijack!(0x008b0530, TEST_DETOUR, TestDetour,
         (param1: i32) -> f64 {
             println!("Detour for TestDetourFN: param1: ({})", param1);
             1000.0
         }
     );
-    hijack!(0x008b03b8, TEST_DETOUR2_FN_PTR, TEST_DETOUR_2, TestDetour2Trampoline,
+    hijack!(0x008b03b8, TEST_DETOUR2, TestDetour2,
         (param1: i32) -> f64 {
             println!("Detour for TestDetour2FN: param1: ({})", param1);
             500.0
@@ -79,15 +89,16 @@ fn init() {
     foreign_fn!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
 
     hijack!(
-        0x00b23340, ENTRY_POINT_FN_PTR, ENTRY_POINT_DETOUR, EntryPointTrampoline,
+        0x00b23340, ENTRY_POINT, EntryPoint,
         () -> i32 {
             //test_test2_fn(1,5);
             //let relative_distance: u32 = std::ptr::read(((*TEST2_FN_PTR as usize) + 1) as *const u32);
             //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
             //pretty_print_code_at_address(address, 160);
             println!("--- ");
-            let result = register_call4_f64(*ALGORITHM_OUTCOMES_FN_PTR as usize, 11,22,33,44);
-            let _ = register_call3(*GET_OPTIMIZATION_DATA_FN_PTR as usize, 11,22,33);
+            //let result = register_call4_f64((*ALGORITHM_OUTCOMES_FN_PTR) as usize, 11,22,33,44);
+            let result = register_call4_f64((*ALGORITHM_OUTCOMES).fn_ptr as usize, 11,22,33,44);
+            let _ = register_call3((*GET_OPTIMIZATION_DATA).fn_ptr as usize, 11,22,33);
             println!("heres the detour. put your code in here");
             let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
             println!("result: {}", result);

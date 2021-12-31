@@ -452,120 +452,123 @@ macro_rules! foreign_fn {
 macro_rules! hijack {
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         $TRAMPOLINE_TYPE: ident,
         ($($ARG:ident:$ARG_TY:ty),*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        struct $TRAMPOLINE_NAME { }
+        // TODO make it so you don't have to include all these identities in this macro, but can give one identity
+        struct $HOOK_STRUCT_NAME {
+            fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?,
+            detour: RawDetour,
+        }
 
-        impl $TRAMPOLINE_TYPE for $TRAMPOLINE_NAME {
+        impl $TRAMPOLINE_TYPE for $HOOK_STRUCT_NAME {
             unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) $(-> $RET_TY)? {$($BLOCK)*}
         }
+
+        impl $HOOK_STRUCT_NAME {
+            fn new(fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?) -> Self {
+                Self {
+                    fn_ptr: fn_ptr,
+                    detour: unsafe {
+                        RawDetour::new(fn_ptr as *const (), Self::trampoline as *const ()).unwrap()
+                    },
+                }
+            }
+        }
+
         lazy_static!(
-            static ref $FOREIGN_FN_PTR_NAME: fn($($ARG_TY),*) $(-> $RET_TY)? =
-                unsafe { std::mem::transmute::<usize, fn($($ARG_TY),*) $(-> $RET_TY)?>($ADDR) };
-            static ref $DETOUR_NAME: RawDetour = unsafe {
-                RawDetour::new(*$FOREIGN_FN_PTR_NAME as *const (), $TRAMPOLINE_NAME::trampoline as *const ()).unwrap()
+            static ref $HOOK_STATIC_INSTANCE_NAME: $HOOK_STRUCT_NAME = unsafe {
+                $HOOK_STRUCT_NAME::new(std::mem::transmute::<usize, fn($($ARG_TY),*) $(-> $RET_TY)?>($ADDR))
             };
         );
-        unsafe { $DETOUR_NAME.enable().unwrap() };
+        unsafe { $HOOK_STATIC_INSTANCE_NAME.detour.enable().unwrap() };
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         () -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline0F64, () -> f64 {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, () -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         () $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1F64, ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1, ($ARG1:$ARG1_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, ($ARG1:$ARG1_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline3F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline3,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline4F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FOREIGN_FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        $TRAMPOLINE_NAME: ident,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline4,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
 }
