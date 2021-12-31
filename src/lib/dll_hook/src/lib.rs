@@ -25,6 +25,39 @@ unsafe extern "C" fn simple_ret_naked(arg1: i32, arg2: i32) -> i32 {
     }
 }
 
+//struct Test2Trampoline {}
+//
+//impl Trampoline2 for Test2Trampoline {
+//    unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32 {
+//        println!("my_func called with: {}, {}", arg1, arg2);
+//        222
+//    }
+//}
+
+trait Trampoline2 {
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> i32 {
+        unsafe {
+            core::arch::asm!(
+                "push ebp",
+                "mov ebp, esp",
+                "push edx",
+                "push eax",
+                "call {}",
+                "add esp, 8",
+                "mov esp, ebp",
+                "pop ebp",
+                "ret",
+                sym Self::real_func,
+                clobber_abi("C"),
+                options(noreturn)
+            );
+        }
+    }
+}
+
 #[naked]
 unsafe extern "C" fn detour_register2() -> i32 {
     unsafe {
@@ -103,6 +136,31 @@ macro_rules! hook {
     };
 }
 
+macro_rules! hijack {
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
+        ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+    ) => {
+        struct $TRAMPOLINE_NAME { }
+
+        impl Trampoline2 for $TRAMPOLINE_NAME {
+            unsafe extern "C" fn real_func($ARG1:i32, $ARG2:i32) -> i32 {$($BLOCK)*}
+        }
+
+        lazy_static!(
+            static ref $FN_PTR_NAME: fn($ARG1_TY, $ARG2_TY) $(-> $RET_TY)? =
+                unsafe { std::mem::transmute::<usize, fn($ARG1_TY, $ARG2_TY) $(-> $RET_TY)?>($ADDR) };
+            static ref $DETOUR_NAME: RawDetour = unsafe {
+                RawDetour::new(*$FN_PTR_NAME as *const (), $TRAMPOLINE_NAME::trampoline as *const ()).unwrap()
+            };
+        );
+        unsafe { $DETOUR_NAME.enable().unwrap() };
+    }
+}
+
 use winapi::shared::minwindef::{
     HINSTANCE, DWORD, LPVOID, BOOL, TRUE
 };
@@ -171,14 +229,20 @@ fn init() {
             )
         }
     }*/
+    hijack!(
+        0x008b0630, TEST2_FN_PTR, TEST2_DETOUR, Test2Trampoline,
+        (arg1: i32, arg2: i32) -> i32 {
+            println!("my_func called with: {}, {}", arg1, arg2);
+            222
+        }
+    );
 
-    hook!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> i32);
-    lazy_static! {
-        static ref TEST2_HOOK: RawDetour = unsafe {
-            RawDetour::new(*TEST2_FN_PTR as *const (), detour_register2 as *const ()).unwrap()
-        };
-    };
-    unsafe { TEST2_HOOK.enable().unwrap() };
+    //hook!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> i32);
+    //lazy_static! {
+    //    static ref TEST2_HOOK: RawDetour = unsafe {
+    //        RawDetour::new(*TEST2_FN_PTR as *const (), Test2Trampoline::trampoline as *const ()).unwrap()
+    //    };
+    //};
 
     //raw_hook!(TEST2_FN_PTR, Test2, test2_fn);
     hook!(0x00b23340, ENTRY_POINT_FN_PTR, EntryPointDetour,
@@ -197,7 +261,7 @@ fn init() {
             //let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
             //println!("result: {}", result);
             let result = register_call2(*TEST2_FN_PTR as usize, 55, 64);
-            println!("result(1,0): {}", result);
+            println!("result(55,64): {}", result);
             let result = register_call2(*TEST2_FN_PTR as usize, 40, 0);
             println!("result(40,0): {}", result);
             let result = register_call2(*TEST2_FN_PTR as usize, 30, 0);
