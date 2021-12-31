@@ -258,7 +258,7 @@ macro_rules! foreign_fn {
     ($ADDR:expr, $FN_PTR_NAME:ident, $FN_SIGNATURE:ty) => {
         lazy_static! {
             static ref $FN_PTR_NAME: $FN_SIGNATURE =
-                unsafe { std::mem::transmute::<u32, $FN_SIGNATURE>($ADDR) };
+                unsafe { std::mem::transmute::<usize, $FN_SIGNATURE>($ADDR as usize) };
         }
     };
 }
