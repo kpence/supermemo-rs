@@ -137,6 +137,56 @@ pub trait Trampoline2F64 {
     }
 }
 
+pub trait Trampoline3 {
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> f64;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> i32 {
+        core::arch::asm!(
+            "push ebp;
+                mov ebp, esp",
+            "push ecx;
+                push edx;
+                push eax;
+                call {};
+                add esp, 12",
+            "mov esp, ebp;
+                pop ebp;
+                ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
+    }
+}
+
+pub trait Trampoline3F64 {
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> f64;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> f64 {
+        core::arch::asm!(
+            "push ebp;
+                mov ebp, esp",
+            "push ecx;
+                push edx;
+                push eax;
+                call {};
+                add esp, 12",
+            "sub esp, 8;
+                fstp qword ptr [esp];
+                movsd xmm0, qword ptr [esp];
+                add esp, 8",
+            "mov esp, ebp;
+                pop ebp;
+                ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
+    }
+}
+
 pub fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
     let ret_val: f64;
     unsafe {
