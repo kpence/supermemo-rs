@@ -10,29 +10,26 @@ use detour::*;
 use std::{ffi::CString, iter};
 use winapi::ctypes::c_int;
 
-unsafe extern "C" fn simple_ret() -> i32 {
-    println!("test");
-    2220
-}
+trait Trampoline0 {
+    unsafe extern "C" fn real_func() -> i32;
 
-#[naked]
-unsafe extern "C" fn simple_ret_naked(arg1: i32, arg2: i32) -> i32 {
-    unsafe {
-        core::arch::asm!(
-            "mov eax, 222; ret",
-            options(noreturn)
-        );
+    #[naked]
+    unsafe extern "C" fn trampoline() -> i32 {
+        unsafe {
+            core::arch::asm!(
+                "push ebp",
+                "mov ebp, esp",
+                "call {}",
+                "mov esp, ebp",
+                "pop ebp",
+                "ret",
+                sym Self::real_func,
+                clobber_abi("C"),
+                options(noreturn)
+            );
+        }
     }
 }
-
-//struct Test2Trampoline {}
-//
-//impl Trampoline2 for Test2Trampoline {
-//    unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32 {
-//        println!("my_func called with: {}, {}", arg1, arg2);
-//        222
-//    }
-//}
 
 trait Trampoline2 {
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32;
@@ -56,31 +53,6 @@ trait Trampoline2 {
             );
         }
     }
-}
-
-#[naked]
-unsafe extern "C" fn detour_register2() -> i32 {
-    unsafe {
-        core::arch::asm!(
-            "push ebp",
-            "mov ebp, esp",
-            "push edx",
-            "push eax",
-            "call {}",
-            "add esp, 8",
-            "mov esp, ebp",
-            "pop ebp",
-            "ret",
-            sym my_func,
-            clobber_abi("C"),
-            options(noreturn)
-        );
-    }
-}
-
-extern "C" fn my_func(arg1: i32, arg2: i32) -> i32 {
-    println!("my_func called with: {}, {}", arg1, arg2);
-    222
 }
 
 fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
@@ -117,17 +89,6 @@ fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
 }
 
 macro_rules! hook {
-    (
-        $ADDR:expr,
-        $FN_PTR_NAME:ident,
-        $DETOUR_NAME: ident,
-        fn($($FARGS:tt)*) $(-> $FRET:ty)?,
-        $DETOUR:expr
-    ) => {
-        hook!($ADDR, $FN_PTR_NAME, fn($($FARGS)*) $(-> $FRET)?);
-        static_detour! { static $DETOUR_NAME: fn($($FARGS)*) $(-> $FRET)?; }
-        unsafe { $DETOUR_NAME.initialize(*$FN_PTR_NAME, $DETOUR).unwrap().enable().unwrap() };
-    };
     ($ADDR:expr, $FN_PTR_NAME:ident, $FN_SIGNATURE:ty) => {
         lazy_static! {
             static ref $FN_PTR_NAME: $FN_SIGNATURE =
@@ -142,23 +103,42 @@ macro_rules! hijack {
         $FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
-        ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        $TRAMPOLINE_TYPE: ident,
+        ($($ARG:ident:$ARG_TY:ty,)*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
         struct $TRAMPOLINE_NAME { }
 
-        impl Trampoline2 for $TRAMPOLINE_NAME {
-            unsafe extern "C" fn real_func($ARG1:i32, $ARG2:i32) -> i32 {$($BLOCK)*}
+        impl $TRAMPOLINE_TYPE for $TRAMPOLINE_NAME {
+            unsafe extern "C" fn real_func($($ARG:$ARG_TY,)*) $(-> $RET_TY)? {$($BLOCK)*}
         }
-
         lazy_static!(
-            static ref $FN_PTR_NAME: fn($ARG1_TY, $ARG2_TY) $(-> $RET_TY)? =
-                unsafe { std::mem::transmute::<usize, fn($ARG1_TY, $ARG2_TY) $(-> $RET_TY)?>($ADDR) };
+            static ref $FN_PTR_NAME: fn($($ARG_TY,)*) $(-> $RET_TY)? =
+                unsafe { std::mem::transmute::<usize, fn($($ARG_TY,)*) $(-> $RET_TY)?>($ADDR) };
             static ref $DETOUR_NAME: RawDetour = unsafe {
                 RawDetour::new(*$FN_PTR_NAME as *const (), $TRAMPOLINE_NAME::trampoline as *const ()).unwrap()
             };
         );
         unsafe { $DETOUR_NAME.enable().unwrap() };
-    }
+    };
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
+        () $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+    ) => {
+        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
+    };
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
+        ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+    ) => {
+        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2,
+                ($ARG1:$ARG1_TY, $ARG2:$ARG2_TY,) $(-> $RET_TY)? {$($BLOCK)*})
+    };
 }
 
 use winapi::shared::minwindef::{
@@ -245,9 +225,9 @@ fn init() {
     //};
 
     //raw_hook!(TEST2_FN_PTR, Test2, test2_fn);
-    hook!(0x00b23340, ENTRY_POINT_FN_PTR, EntryPointDetour,
-          fn(),
-        || {
+    hijack!(
+        0x00b23340, ENTRY_POINT_FN_PTR, ENTRY_POINT_DETOUR, EntryPointTrampoline,
+        () -> i32 {
             //test_test2_fn(1,5);
             //let relative_distance: u32 = std::ptr::read(((*TEST2_FN_PTR as usize) + 1) as *const u32);
             //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
