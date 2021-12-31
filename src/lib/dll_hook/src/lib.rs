@@ -51,24 +51,30 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
+    foreign_fn!(0x008a71fc, GRADE_BIT_FLAG_FN_PTR, fn(i32) -> i32);
+
     hijack!(0x00950f80, GET_OPTIMIZATION_DATA, GetOptimizationData,
             (param1: i32, param2: i32, param3: i32) -> i32 {
                 println!("Detour for GetOptimizationData: ({} {} {})", param1, param2, param3);
                 0
             }
     );
+
     hijack!(0x0088ce7c, SUB_88ce7c, Sub88ce7c,
-            (param1: i32, param2: i32, param3: i32) -> i32 {
-                println!("Detour for Sub88ce7c: ({} {} {})", param1, param2, param3);
+            (param1: i32) -> i32 {
+                println!("Detour for Sub88ce7c: ({})", param1);
                 0
             }
     );
+
     hijack!(0x008b09d8, COMPUTE_REPETITION_PARAMETERS, ComputeRepetitionParameters,
             (param1: i32) -> i32 {
                 println!("Detour for ComputeRepetitionParameters: ({})", param1);
                 0
             }
     );
+    //unsafe { (*COMPUTE_REPETITION_PARAMETERS).detour.disable().unwrap() };
+
     hijack!(0x00955488, ALGORITHM_OUTCOMES, AlgorithmOutcomes,
             (param1: i32, param2: i32, param3: i32, param4: i32) -> f64 {
                 println!("Detour for AlgorithmOutcomesFN: ({} {} {} {})", param1, param2, param3, param4);
@@ -146,6 +152,7 @@ fn init() {
                 _ItemDifficulty: 0.0,
             };
             let result = register_call4_f64((*ALGORITHM_OUTCOMES).detour.trampoline() as *const _ as usize, 1,2,3,&mock_item_optimization_data as *const _ as i32);
+            println!("The new value of item opt data's grade: {}", mock_item_optimization_data.TheGrade);
             let _ = register_call3((*GET_OPTIMIZATION_DATA).fn_ptr as usize, 11,22,33);
             println!("heres the detour. put your code in here");
             let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
@@ -160,6 +167,11 @@ fn init() {
             println!("result(40,0): {}", result);
             let result = register_call2_f64(*TEST2_FN_PTR as usize, 30, 0);
             println!("result(30,0): {}", result);
+
+            for i in 0..10 {
+                let result = register_call1(*GRADE_BIT_FLAG_FN_PTR as usize, i);
+                println!("Grade bit flag result({}): {}", i, result);
+            }
 
             //let relative_distance: u32 = std::ptr::read(((*TEST_DETOUR2_FN_PTR as usize) + 1) as *const u32);
             //let address: u32 = (*TEST_DETOUR2_FN_PTR as u32) + relative_distance + 5;
