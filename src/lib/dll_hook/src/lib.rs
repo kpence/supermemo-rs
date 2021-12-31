@@ -7,48 +7,23 @@ extern crate kernel32;
 extern crate libc;
 
 use detour::*;
-use std::{ffi::CString, iter};
-use winapi::ctypes::c_int;
-
-trait Trampoline<F> {
-    unsafe extern "C" fn real_func() -> i32;
-
-    #[naked]
-    unsafe extern "C" fn trampoline() -> i32 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "call {}",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-                options(noreturn)
-            );
-        }
-    }
-}
 
 trait Trampoline0 {
     unsafe extern "C" fn real_func() -> i32;
 
     #[naked]
     unsafe extern "C" fn trampoline() -> i32 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "call {}",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-                options(noreturn)
-            );
-        }
+        core::arch::asm!(
+            "push ebp",
+            "mov ebp, esp",
+            "call {}",
+            "mov esp, ebp",
+            "pop ebp",
+            "ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
     }
 }
 
@@ -58,24 +33,22 @@ trait Trampoline1F64 {
 
     #[naked]
     unsafe extern "C" fn trampoline() -> f64 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "push eax",
-                "call {}",
-                "sub esp, 8",
-                "fstp qword ptr [esp]",
-                "movsd xmm0, qword ptr [esp]",
-                "add esp, 8",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-                options(noreturn)
-            );
-        }
+        core::arch::asm!(
+            "push ebp",
+            "mov ebp, esp",
+            "push eax",
+            "call {}",
+            "sub esp, 8",
+            "fstp qword ptr [esp]",
+            "movsd xmm0, qword ptr [esp]",
+            "add esp, 8",
+            "mov esp, ebp",
+            "pop ebp",
+            "ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
     }
 }
 
@@ -85,25 +58,23 @@ trait Trampoline2F64 {
 
     #[naked]
     unsafe extern "C" fn trampoline() -> f64 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "push edx",
-                "push eax",
-                "call {}",
-                "sub esp, 8",
-                "fstp qword ptr [esp]",
-                "movsd xmm0, qword ptr [esp]",
-                "add esp, 8",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-                options(noreturn)
-            );
-        }
+        core::arch::asm!(
+            "push ebp",
+            "mov ebp, esp",
+            "push edx",
+            "push eax",
+            "call {}",
+            "sub esp, 8",
+            "fstp qword ptr [esp]",
+            "movsd xmm0, qword ptr [esp]",
+            "add esp, 8",
+            "mov esp, ebp",
+            "pop ebp",
+            "ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
     }
 }
 
@@ -112,20 +83,18 @@ trait Trampoline1 {
 
     #[naked]
     unsafe extern "C" fn trampoline() -> i32 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "push eax",
-                "call {}",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-                options(noreturn)
-            );
-        }
+        core::arch::asm!(
+            "push ebp",
+            "mov ebp, esp",
+            "push eax",
+            "call {}",
+            "mov esp, ebp",
+            "pop ebp",
+            "ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
     }
 }
 
@@ -134,22 +103,20 @@ trait Trampoline2 {
 
     #[naked]
     unsafe extern "C" fn trampoline() -> i32 {
-        unsafe {
-            core::arch::asm!(
-                "push ebp",
-                "mov ebp, esp",
-                "push edx",
-                "push eax",
-                "call {}",
-                "add esp, 8",
-                "mov esp, ebp",
-                "pop ebp",
-                "ret",
-                sym Self::real_func,
-                clobber_abi("C"),
-               options(noreturn)
-            );
-        }
+        core::arch::asm!(
+            "push ebp",
+            "mov ebp, esp",
+            "push edx",
+            "push eax",
+            "call {}",
+            "add esp, 8",
+            "mov esp, ebp",
+            "pop ebp",
+            "ret",
+            sym Self::real_func,
+            clobber_abi("C"),
+            options(noreturn)
+        );
     }
 }
 
