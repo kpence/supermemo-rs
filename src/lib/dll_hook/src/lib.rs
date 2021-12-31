@@ -49,6 +49,17 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
+    hijack!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, GET_OPTIMIZATION_DATA_DETOUR, GetOptimizationDataTrampoline,
+            (param1: i32, param2: i32, param3: i32) {
+                println!("Detour for GetOptimizationDataFN: param1: ({} {} {})", param1, param2, param3);
+            }
+    );
+    hijack!(0x00955488, ALGORITHM_OUTCOMES_FN_PTR, ALGORITHM_OUTCOMES_DETOUR, AlgorithmOutcomesTrampoline,
+            (param1: i32, param2: i32, param3: i32, param4: i32) -> f64 {
+                println!("Detour for AlgorithmOutcomesFN: param1: ({} {} {} {})", param1, param2, param3, param4);
+                1000.0
+            }
+    );
     foreign_fn!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
 
     hijack!(0x008b0530, TEST_DETOUR_FN_PTR, TEST_DETOUR, TestDetourTrampoline,
@@ -64,15 +75,6 @@ fn init() {
         }
     );
 
-    //hijack!(
-    //    0x008b0630, TEST2_FN_PTR, TEST2_DETOUR, Test2Trampoline,
-    //    //(arg1: i32, arg2: i32) -> i32 {
-    //    (arg1: i32) -> f64 {
-    //        println!("my_func called with: {}", arg1);
-    //        222.0
-    //    }
-    //);
-
     foreign_fn!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
 
     hijack!(
@@ -83,13 +85,15 @@ fn init() {
             //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
             //pretty_print_code_at_address(address, 160);
             println!("--- ");
+            let result = register_call4(*ALGORITHM_OUTCOMES_FN_PTR as usize, 11,22,33,44);
+            let _ = register_call3(*GET_OPTIMIZATION_DATA_FN_PTR as usize, 11,22,33);
             println!("heres the detour. put your code in here");
-            //let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
-            //println!("result: {}", result);
-            //let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
-            //println!("result: {}", result);
-            //let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
-            //println!("result: {}", result);
+            let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
+            println!("result: {}", result);
+            let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
+            println!("result: {}", result);
+            let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
+            println!("result: {}", result);
             let result = register_call2_f64(*TEST2_FN_PTR as usize, 55, 64);
             println!("result(55,64): {}", result);
             let result = register_call2_f64(*TEST2_FN_PTR as usize, 40, 1);
