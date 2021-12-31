@@ -31,6 +31,83 @@ trait Trampoline0 {
     }
 }
 
+// TODO figure out how generics work
+trait Trampoline1F64 {
+    unsafe extern "C" fn real_func(arg1: i32) -> f64;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> f64 {
+        unsafe {
+            core::arch::asm!(
+                "push ebp",
+                "mov ebp, esp",
+                "push eax",
+                "call {}",
+                "sub esp, 8",
+                "fstp qword ptr [esp]",
+                "movsd xmm0, qword ptr [esp]",
+                "add esp, 8",
+                "mov esp, ebp",
+                "pop ebp",
+                "ret",
+                sym Self::real_func,
+                clobber_abi("C"),
+                options(noreturn)
+            );
+        }
+    }
+}
+
+// TODO figure out how generics work
+trait Trampoline2F64 {
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> f64;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> f64 {
+        unsafe {
+            core::arch::asm!(
+                "push ebp",
+                "mov ebp, esp",
+                "push edx",
+                "push eax",
+                "call {}",
+                "sub esp, 8",
+                "fstp qword ptr [esp]",
+                "movsd xmm0, qword ptr [esp]",
+                "add esp, 8",
+                "mov esp, ebp",
+                "pop ebp",
+                "ret",
+                sym Self::real_func,
+                clobber_abi("C"),
+                options(noreturn)
+            );
+        }
+    }
+}
+
+trait Trampoline1 {
+    unsafe extern "C" fn real_func(arg1: i32) -> i32;
+
+    #[naked]
+    unsafe extern "C" fn trampoline() -> i32 {
+        unsafe {
+            core::arch::asm!(
+                "push ebp",
+                "mov ebp, esp",
+                "push eax",
+                "call {}",
+                "mov esp, ebp",
+                "pop ebp",
+                "ret",
+                sym Self::real_func,
+                clobber_abi("C"),
+                options(noreturn)
+            );
+        }
+    }
+}
+
 trait Trampoline2 {
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32;
 
@@ -53,6 +130,39 @@ trait Trampoline2 {
             );
         }
     }
+}
+
+fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
+    let ret_val: f64;
+    unsafe {
+        core::arch::asm!(
+            "finit; call {f}",
+            f = in(reg) ptr,
+            in("eax") arg1,
+            in("edx") arg2,
+            lateout("eax") _,
+            out("ecx") _,
+            lateout("edx") _,
+            out("st(0)") _,
+            out("st(1)") _,
+            out("st(2)") _,
+            out("st(3)") _,
+            out("st(4)") _,
+            out("st(5)") _,
+            out("st(6)") _,
+            out("st(7)") _,
+            out("xmm0") ret_val,
+            out("xmm1") _,
+            out("xmm2") _,
+            out("xmm3") _,
+            out("xmm4") _,
+            out("xmm5") _,
+            out("xmm6") _,
+            out("xmm7") _
+        );
+    }
+    println!("register_call2");
+    ret_val
 }
 
 fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
@@ -134,6 +244,34 @@ macro_rules! hijack {
         $FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
+        ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
+    ) => {
+        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1F64, ($ARG1:$ARG1_TY,) -> f64 {$($BLOCK)*})
+    };
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
+        ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
+    ) => {
+        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2F64,
+                ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK)*})
+    };
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
+        ($ARG1:ident:$ARG1_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+    ) => {
+        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1, ($ARG1:$ARG1_TY,) $(-> $RET_TY)? {$($BLOCK)*})
+    };
+    (
+        $ADDR:expr,
+        $FN_PTR_NAME:ident,
+        $DETOUR_NAME: ident,
+        $TRAMPOLINE_NAME: ident,
         ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
         hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2,
@@ -183,48 +321,31 @@ fn init() {
     println!("Initializing..");
 
     hook!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
-    //hook!(0x008b0530, TEST_DETOUR_FN_PTR, TestDetour,
-    //      fn(u8, u8, u8, u8, u8) -> f64,
-    //    move |param1, param2, param3, param4, param5| {
-    //        println!("Detour for TestDetourFN: param1: ({} {} {} {} {})", param1, param2, param3, param4, param5);
-    //        //(*TEST_DETOUR_FN_PTR)(param1)
-    //        500.0
-    //    }
-    //);
-    //hook!(0x008b03b8, TEST_DETOUR2_FN_PTR, TestDetour2,
-    //      fn(i8) -> f64,
-    //    |i8| {
-    //        
-    //});
 
-    /*#[naked]
-    fn test_test2_fn(param1: u32, param2: u32) -> ! {
-        let address: u32 = *TEST2_FN_PTR as u32;
-        unsafe {
-            asm!(
-                "mov dl, 5",
-                "mov al, 1",
-                "jmp ecx", in("ecx") address,
-                options(noreturn)
-            )
+    hijack!(0x008b0530, TEST_DETOUR_FN_PTR, TEST_DETOUR, TestDetourTrampoline,
+        (param1: i32) -> f64 {
+            println!("Detour for TestDetourFN: param1: ({})", param1);
+            1000.0
         }
-    }*/
-    hijack!(
-        0x008b0630, TEST2_FN_PTR, TEST2_DETOUR, Test2Trampoline,
-        (arg1: i32, arg2: i32) -> i32 {
-            println!("my_func called with: {}, {}", arg1, arg2);
-            222
+    );
+    hijack!(0x008b03b8, TEST_DETOUR2_FN_PTR, TEST_DETOUR_2, TestDetour2Trampoline,
+        (param1: i32) -> f64 {
+            println!("Detour for TestDetour2FN: param1: ({})", param1);
+            500.0
         }
     );
 
-    //hook!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> i32);
-    //lazy_static! {
-    //    static ref TEST2_HOOK: RawDetour = unsafe {
-    //        RawDetour::new(*TEST2_FN_PTR as *const (), Test2Trampoline::trampoline as *const ()).unwrap()
-    //    };
-    //};
+    //hijack!(
+    //    0x008b0630, TEST2_FN_PTR, TEST2_DETOUR, Test2Trampoline,
+    //    //(arg1: i32, arg2: i32) -> i32 {
+    //    (arg1: i32) -> f64 {
+    //        println!("my_func called with: {}", arg1);
+    //        222.0
+    //    }
+    //);
 
-    //raw_hook!(TEST2_FN_PTR, Test2, test2_fn);
+    hook!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
+
     hijack!(
         0x00b23340, ENTRY_POINT_FN_PTR, ENTRY_POINT_DETOUR, EntryPointTrampoline,
         () -> i32 {
@@ -240,11 +361,11 @@ fn init() {
             //println!("result: {}", result);
             //let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
             //println!("result: {}", result);
-            let result = register_call2(*TEST2_FN_PTR as usize, 55, 64);
+            let result = register_call2_f64(*TEST2_FN_PTR as usize, 55, 64);
             println!("result(55,64): {}", result);
-            let result = register_call2(*TEST2_FN_PTR as usize, 40, 0);
+            let result = register_call2_f64(*TEST2_FN_PTR as usize, 40, 1);
             println!("result(40,0): {}", result);
-            let result = register_call2(*TEST2_FN_PTR as usize, 30, 0);
+            let result = register_call2_f64(*TEST2_FN_PTR as usize, 30, 0);
             println!("result(30,0): {}", result);
 
             //let relative_distance: u32 = std::ptr::read(((*TEST_DETOUR2_FN_PTR as usize) + 1) as *const u32);
