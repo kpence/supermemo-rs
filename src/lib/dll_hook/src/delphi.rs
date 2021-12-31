@@ -138,7 +138,7 @@ pub trait Trampoline2F64 {
 }
 
 pub trait Trampoline3 {
-    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> f64;
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> i32;
 
     #[naked]
     unsafe extern "C" fn trampoline() -> i32 {
@@ -403,6 +403,7 @@ pub fn register_call4(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) ->
     ret_val
 }
 
+// TODO We should use the ptr to the function instead of a usize in order to prevent using the wrong register call function (e.g. f64 instead of i32 output
 pub fn register_call4_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> f64 {
     let ret_val: f64;
     unsafe {
