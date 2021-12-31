@@ -457,7 +457,6 @@ macro_rules! hijack {
         $TRAMPOLINE_TYPE: ident,
         ($($ARG:ident:$ARG_TY:ty),*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        // TODO make it so you don't have to include all these identities in this macro, but can give one identity
         struct $HOOK_STRUCT_NAME {
             fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?,
             detour: RawDetour,
