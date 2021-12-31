@@ -198,7 +198,7 @@ fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
     ret_val
 }
 
-macro_rules! hook {
+macro_rules! foreign_fn {
     ($ADDR:expr, $FN_PTR_NAME:ident, $FN_SIGNATURE:ty) => {
         lazy_static! {
             static ref $FN_PTR_NAME: $FN_SIGNATURE =
@@ -210,7 +210,7 @@ macro_rules! hook {
 macro_rules! hijack {
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         $TRAMPOLINE_TYPE: ident,
@@ -222,59 +222,59 @@ macro_rules! hijack {
             unsafe extern "C" fn real_func($($ARG:$ARG_TY,)*) $(-> $RET_TY)? {$($BLOCK)*}
         }
         lazy_static!(
-            static ref $FN_PTR_NAME: fn($($ARG_TY,)*) $(-> $RET_TY)? =
+            static ref $FOREIGN_FN_PTR_NAME: fn($($ARG_TY,)*) $(-> $RET_TY)? =
                 unsafe { std::mem::transmute::<usize, fn($($ARG_TY,)*) $(-> $RET_TY)?>($ADDR) };
             static ref $DETOUR_NAME: RawDetour = unsafe {
-                RawDetour::new(*$FN_PTR_NAME as *const (), $TRAMPOLINE_NAME::trampoline as *const ()).unwrap()
+                RawDetour::new(*$FOREIGN_FN_PTR_NAME as *const (), $TRAMPOLINE_NAME::trampoline as *const ()).unwrap()
             };
         );
         unsafe { $DETOUR_NAME.enable().unwrap() };
     };
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         () $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1F64, ($ARG1:$ARG1_TY,) -> f64 {$($BLOCK)*})
+        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1F64, ($ARG1:$ARG1_TY,) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2F64,
+        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2F64,
                 ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         ($ARG1:ident:$ARG1_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1, ($ARG1:$ARG1_TY,) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline1, ($ARG1:$ARG1_TY,) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
-        $FN_PTR_NAME:ident,
+        $FOREIGN_FN_PTR_NAME:ident,
         $DETOUR_NAME: ident,
         $TRAMPOLINE_NAME: ident,
         ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2,
+        hijack!($ADDR, $FOREIGN_FN_PTR_NAME, $DETOUR_NAME, $TRAMPOLINE_NAME, Trampoline2,
                 ($ARG1:$ARG1_TY, $ARG2:$ARG2_TY,) $(-> $RET_TY)? {$($BLOCK)*})
     };
 }
@@ -320,7 +320,7 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    hook!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
+    foreign_fn!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
 
     hijack!(0x008b0530, TEST_DETOUR_FN_PTR, TEST_DETOUR, TestDetourTrampoline,
         (param1: i32) -> f64 {
@@ -344,7 +344,7 @@ fn init() {
     //    }
     //);
 
-    hook!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
+    foreign_fn!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
 
     hijack!(
         0x00b23340, ENTRY_POINT_FN_PTR, ENTRY_POINT_DETOUR, EntryPointTrampoline,
