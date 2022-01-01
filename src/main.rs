@@ -8,7 +8,7 @@ use std::ffi::CString;
 
 use winapi::um::winnt::HANDLE;
 use winapi::um::errhandlingapi as werror;
-use winapi::um::winbase::{INFINITE, CREATE_NO_WINDOW};
+use winapi::um::winbase::{INFINITE, CREATE_NO_WINDOW, CREATE_SUSPENDED};
 use winapi::um::memoryapi as wmem;
 use winapi::um::processthreadsapi as wproc;
 use winapi::um::psapi;
@@ -35,7 +35,7 @@ macro_rules! werr {
     };
 }
 
-pub fn spawn_process(exe_path: &str) -> io::Result<HANDLE> {
+pub fn spawn_process(exe_path: &str, proc_flags: u32) -> io::Result<HANDLE> {
     let mut proc_info = wproc::PROCESS_INFORMATION {
         hProcess: ptr::null_mut(),
         hThread: ptr::null_mut(),
@@ -70,7 +70,7 @@ pub fn spawn_process(exe_path: &str) -> io::Result<HANDLE> {
             ptr::null_mut(),
             ptr::null_mut(),
             0,
-            CREATE_NO_WINDOW,
+            proc_flags,
             ptr::null_mut(),
             ptr::null_mut(),
             &mut startup_info,
@@ -166,13 +166,15 @@ pub fn inject(proc: HANDLE, dll: &Path) -> io::Result<()> {
 fn main() {
     // Print text to the console
     println!("Starting process...");
-    match spawn_process("C:\\Users\\wineuser\\target.exe") {
+    //match spawn_process("C:\\Users\\wineuser\\target.exe", CREATE_NO_WINDOW | CREATE_SUSPENDED) {
+    match spawn_process("C:\\Users\\wineuser\\target.exe", CREATE_NO_WINDOW) {
         Ok(handle) => {
             println!("Injecting now...");
             match inject(handle, Path::new("C:\\Users\\wineuser\\hook.dll")) {
                 Ok(_) => println!("Maybe successful injection"),
                 Err(e) => panic!("Error in inject function: {}", e)
             }
+            //let _ = spawn_process("C:\\Users\\wineuser\\ollydbg.exe", 0).unwrap();
             unsafe {
                 synchapi::WaitForSingleObject(handle, INFINITE);
             }

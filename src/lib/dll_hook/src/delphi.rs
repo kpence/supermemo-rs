@@ -391,13 +391,11 @@ pub fn register_call3_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32) -> f64 {
     ret_val
 }
 
-//"finit; push {arg4}; call {f}; add esp, 4",
-//arg4 = in(reg) arg4,
 pub fn register_call4(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> i32 {
     let ret_val: i32;
     unsafe {
         core::arch::asm!(
-            "finit; push edi; call ebx; add esp, 4",
+            "finit; push edi; call ebx",
             in("edi") arg4,
             in("ebx") ptr,
             in("eax") arg1,
@@ -432,7 +430,7 @@ pub fn register_call4_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32
     let ret_val: f64;
     unsafe {
         core::arch::asm!(
-            "finit; push edi; call ebx; add esp, 4",
+            "finit; push edi; call ebx",
             in("edi") arg4,
             in("ebx") ptr,
             in("eax") arg1,
