@@ -188,7 +188,7 @@ pub trait Trampoline3F64 {
 }
 
 pub trait Trampoline4 {
-    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> f64;
+    unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> i32;
 
     #[naked]
     unsafe extern "C" fn trampoline() -> i32 {
