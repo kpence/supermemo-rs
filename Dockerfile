@@ -2,6 +2,7 @@ FROM mmozeiko/mingw-w64
 FROM scottyhardy/docker-wine:latest
 # TODO use variables for the file names and directory for easy change
 
+COPY assets/odbg200.zip /
 COPY assets/i686-w64-mingw-deps/* /
 ADD assets/sm18.exe /target.exe
 RUN chmod a+x /target.exe

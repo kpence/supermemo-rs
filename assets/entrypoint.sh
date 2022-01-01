@@ -60,7 +60,7 @@ grep -q "^${USER_NAME}:" /etc/passwd || useradd --shell /bin/bash --uid "${USER_
 # TODO Added specifically for this project
 cp /hook.dll ${USER_HOME}/.wine/drive_c/users/wineuser
 cp /target.exe ${USER_HOME}/.wine/drive_c/users/wineuser
-cp /lib*.dll ${USER_HOME}/.wine/drive_c/users/wineuser
+yes n | unzip /odbg200.zip -d ${USER_HOME}/.wine/drive_c/users/wineuser
 export RUST_BACKTRACE=1
 #export WINEPATH="/usr/i686-w64-mingw32/lib;/usr/lib/gcc/i686-w64-mingw32/7.3-posix;/usr/x86_64-w64-mingw32/lib;/usr/lib/gcc/x86_64-w64-mingw32/7.3-posix"
 
