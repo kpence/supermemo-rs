@@ -4,6 +4,7 @@ use libc::size_t;
 use std::ptr;
 
 #[derive(Default, Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct ItemOptimizationData {
     pub ElementNo: u32,
@@ -49,6 +50,7 @@ pub struct ItemOptimizationData {
 }
 
 #[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct OptimizationRecord {
     pub OFM: [u16; 400],
@@ -83,6 +85,7 @@ impl Default for OptimizationRecord {
 }
 
 #[derive(Default, Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct FIVsPriorityRec {
     pub Count: u16,
@@ -90,6 +93,7 @@ pub struct FIVsPriorityRec {
 }
 
 #[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct DataRecord {
     pub Total: u32,
@@ -206,6 +210,7 @@ impl Default for DataRecord {
 }
 
 #[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct Database {
     pub _unknown0: u32,
@@ -656,6 +661,7 @@ impl Default for Database {
 }
 
 #[derive(Default, Debug, Copy, Clone)]
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct Queue {
     _unknown: u32,
