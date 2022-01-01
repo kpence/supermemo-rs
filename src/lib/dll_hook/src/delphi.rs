@@ -404,7 +404,7 @@ pub fn register_call4(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) ->
     let ret_val: i32;
     unsafe {
         core::arch::asm!(
-            "finit; push {arg4}; call {f}",
+            "finit; push {arg4}; call {f}; add esp, 4",
             arg4 = in(reg) arg4,
             f = in(reg) ptr,
             in("eax") arg1,
