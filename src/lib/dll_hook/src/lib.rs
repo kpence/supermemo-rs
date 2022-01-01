@@ -51,53 +51,35 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    foreign_fn!(0x008a71fc, GRADE_BIT_FLAG_FN_PTR, fn(i32) -> i32);
+    foreign_fn!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, fn(u32, u32, *const DataRecord));
 
-    hijack!(0x00950f80, GET_OPTIMIZATION_DATA, GetOptimizationData,
-            (param1: i32, param2: i32, param3: i32) -> i32 {
-                println!("Detour for GetOptimizationData: ({} {} {})", param1, param2, param3);
-                0
-            }
-    );
+    // These have been confirmed to be necessary for avoiding errors and side effects
+    // These also are TODO and not fully tested and verified
+    {
+        foreign_fn!(0x0042c3e8, DATE_NOW_FN, fn() -> f64);
 
-    hijack!(0x0088ce7c, SUB_88ce7c, Sub88ce7c,
-            (param1: i32) -> i32 {
-                println!("Detour for Sub88ce7c: ({})", param1);
-                0
-            }
-    );
+        hijack!(0x0094da30, GET_ITEM_INFO, GetItemInfo,
+                (database: i32, element_number: i32) -> i32 {
+                    println!("Detour for GetItemInfo: ({} {})", database, element_number);
+                    // TODO This I think I'll lock in
+                    /*
+                    TODO
+                    What this will need to do:
+                    Set Database's ItemInfoOpened
+                    ...... TODO
+                    */
+                    0
+                }
+        );
+    }
 
     hijack!(0x008b09d8, COMPUTE_REPETITION_PARAMETERS, ComputeRepetitionParameters,
             (param1: i32) -> i32 {
                 println!("Detour for ComputeRepetitionParameters: ({})", param1);
+                // TODO
                 0
             }
     );
-    //unsafe { (*COMPUTE_REPETITION_PARAMETERS).detour.disable().unwrap() };
-
-    hijack!(0x00955488, ALGORITHM_OUTCOMES, AlgorithmOutcomes,
-            (param1: i32, param2: i32, param3: i32, param4: i32) -> f64 {
-                println!("Detour for AlgorithmOutcomesFN: ({} {} {} {})", param1, param2, param3, param4);
-                1000.0
-            }
-    );
-
-    foreign_fn!(0x008ae4cc, TEST_FN_PTR, fn(f64, f64, f64) -> f64);
-
-    hijack!(0x008b0530, TEST_DETOUR, TestDetour,
-        (param1: i32) -> f64 {
-            println!("Detour for TestDetourFN: ({})", param1);
-            1000.0
-        }
-    );
-    hijack!(0x008b03b8, TEST_DETOUR2, TestDetour2,
-        (param1: i32) -> f64 {
-            println!("Detour for TestDetour2FN: ({})", param1);
-            500.0
-        }
-    );
-
-    foreign_fn!(0x008b0630, TEST2_FN_PTR, fn(i32, i32) -> f64);
 
     hijack!(
         0x00b23340, ENTRY_POINT, EntryPoint,
@@ -107,71 +89,45 @@ fn init() {
             //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
             //pretty_print_code_at_address(address, 160);
             println!("--- ");
-            let result = register_call4_f64((*ALGORITHM_OUTCOMES).fn_ptr as usize, 11,22,33,44);
+            //let result = register_call4_f64((*ALGORITHM_OUTCOMES).fn_ptr as usize, 11,22,33,44);
             // Set up a proper testing enviroment and taking advice of properties and fixtures
-            let mock_item_optimization_data = ItemOptimizationData {
-                ElementNo: 0,
-                Today: 0,
-                TheGrade: 0,
-                TheFirstGrade: 0,
-                LastRepetition: 0,
-                OldInterval: 0,
-                UsedInterval: 0,
-                VirtualUsedInterval: 0,
-                OI16: 0,
-                NI16: 0,
-                OI17: 0.0,
-                NI17: 0.0,
-                NewInterval: 0,
-                Repetitions: 0,
-                NewRepetitions: 0,
-                Lapses: 0,
-                NewLapses: 0,
-                RequestedFI: 0,
-                Ordinal: 0.0,
-                AFactor: 0.0,
-                NewAFactor: 0.0,
-                UFactor: 0.0,
-                NewUFactor: 0.0,
-                OldRF: 0.0,
-                NewRF: 0.0,
-                OldOF: 0.0,
-                NewOF: 0.0,
-                Cases: 0,
-                EstimatedFI: 0.0,
-                ExpectedFI: 0.0,
-                NormalizedGrade: 0.0,
-                NGMin: 0.0,
-                NGMax: 0.0,
-                RepetitionsCategory: 0.0,
-                RepetitionsHistory: 0,
-                ExpR: 0.0,
-                UsualR: 0.0,
-                PredictedR: 0.0,
-                Postpones: 0,
-                _ItemDifficulty: 0.0,
-            };
-            let result = register_call4_f64((*ALGORITHM_OUTCOMES).detour.trampoline() as *const _ as usize, 1,2,3,&mock_item_optimization_data as *const _ as i32);
-            println!("The new value of item opt data's grade: {}", mock_item_optimization_data.TheGrade);
-            let _ = register_call3((*GET_OPTIMIZATION_DATA).fn_ptr as usize, 11,22,33);
-            println!("heres the detour. put your code in here");
-            let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
-            println!("result: {}", result);
-            let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
-            println!("result: {}", result);
-            let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
-            println!("result: {}", result);
-            let result = register_call2_f64(*TEST2_FN_PTR as usize, 55, 64);
-            println!("result(55,64): {}", result);
-            let result = register_call2_f64(*TEST2_FN_PTR as usize, 40, 1);
-            println!("result(40,0): {}", result);
-            let result = register_call2_f64(*TEST2_FN_PTR as usize, 30, 0);
-            println!("result(30,0): {}", result);
+            let mock_optimization_record = OptimizationRecord { ..Default::default() };
+            let mock_item_optimization_data = ItemOptimizationData { ..Default::default() };
+            let mock_data_record = DataRecord { ..Default::default() };
+            //let result = register_call4_f64((*ALGORITHM_OUTCOMES).detour.trampoline() as *const _ as usize, 1,2,3,&mock_item_optimization_data as *const _ as i32);
+            //println!("The new value of item opt data's grade: {}", mock_item_optimization_data.TheGrade);
+            //let _ = register_call3((*GET_OPTIMIZATION_DATA).fn_ptr as usize, 11,22,33);
+            //println!("heres the detour. put your code in here");
+            //let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
+            //println!("result: {}", result);
+            //let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
+            //println!("result: {}", result);
+            //let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
+            //println!("result: {}", result);
+            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 55, 64);
+            //println!("result(55,64): {}", result);
+            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 40, 1);
+            //println!("result(40,0): {}", result);
+            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 30, 0);
+            //println!("result(30,0): {}", result);
 
-            for i in 0..10 {
-                let result = register_call1(*GRADE_BIT_FLAG_FN_PTR as usize, i);
-                println!("Grade bit flag result({}): {}", i, result);
+            //for i in 0..10 {
+            //    let result = register_call1(*GRADE_BIT_FLAG_FN_PTR as usize, i);
+            //    println!("Grade bit flag result({}): {}", i, result);
+            //}
+
+            //let result = register_call1((*COMPUTE_REPETITION_PARAMETERS).detour.trampoline() as *const _ as usize, &mock_item_optimization_data as *const _ as i32);
+            let new_optimization_records_ptr = 0xca4548 as *mut OptimizationRecord;
+            unsafe {
+                std::ptr::write(new_optimization_records_ptr, mock_optimization_record);
             }
+            let result = register_call3((*GET_OPTIMIZATION_DATA_FN_PTR) as usize, 0, 0, &mock_data_record as *const _ as i32);
+            println!("finished compute repetition parameters: MockDataRecord {:?}", mock_item_optimization_data);
+
+            //let result = register_call1((*FIRST_INTERVAL_VECTOR).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
+            //let result = register_call1((*D_FACTOR_1).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
+            //let result = register_call1((*RECOMPUTE_O_F_MATRIX).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
+            //println!("finished compute repetition parameters: NewAFactor {}", mock_item_optimization_data.NewAFactor);
 
             //let relative_distance: u32 = std::ptr::read(((*TEST_DETOUR2_FN_PTR as usize) + 1) as *const u32);
             //let address: u32 = (*TEST_DETOUR2_FN_PTR as u32) + relative_distance + 5;
