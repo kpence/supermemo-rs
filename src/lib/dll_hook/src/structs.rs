@@ -52,6 +52,120 @@ pub struct ItemOptimizationData {
 #[derive(Debug, Copy, Clone)]
 #[allow(non_snake_case)]
 #[repr(C)]
+pub struct RepHistRecord {
+    pub ElNo: u32,
+    pub Repetitions: u16,
+    pub Lapses: u16,
+    pub LastInterval: u16,
+    pub RepDate: u8,
+    pub TheHour: [u8; 6],
+    pub Grade: u8,
+    pub Difficulty: u16,
+    pub PriorityPos: u32,
+    pub Postpones: u16,
+    pub RecType: u8,
+    pub ExpR: u8,
+    pub Next: *mut RepHistRecord,
+}
+
+impl Default for RepHistRecord {
+    fn default() -> Self {
+        Self {
+            ElNo: 0,
+            Repetitions: 0,
+            Lapses: 0,
+            LastInterval: 0,
+            RepDate: 0,
+            TheHour: [0; 6],
+            Grade: 0,
+            Difficulty: 0,
+            PriorityPos: 0,
+            Postpones: 0,
+            RecType: 0,
+            ExpR: 0,
+            Next: ptr::null_mut(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct ItemInfo {
+    pub EType: u8,
+    pub EStatus: u8,
+    pub TitlePtr: u32,
+    pub ComponentPtr: u32,
+    pub MaxComponentSize: u16,
+    pub Repetitions: u16,
+    pub Lapses: u16,
+    pub Interval: u16,
+    pub LastRepetition: u16,
+    pub LastRepDate: f64,
+    pub AF: [u8; 6],
+    pub UF: [u8; 6],
+    pub RepHistPtr: *mut RepHistRecord,
+    pub ReferenceNo: u32,
+    pub FI: u8,
+    pub TotalPostpones: u32,
+    pub RecentPostpones: u32,
+    pub Comment: u32,
+    pub Template: u32,
+    pub ConceptGroup: u32,
+    pub ConceptNo: u32,
+    pub LinkNo: u32,
+    pub LastVisited: f64,
+    pub TasklistNo: u32,
+    pub TaskNo: u32,
+    pub RootArticle: u32,
+    pub _ElementDifficulty: [u8; 6],
+    pub Ordinal: [u8; 6],
+    pub _FirstGrade: u8,
+    pub TheElementNo: u32,
+    pub FirstRepetitionDay: u32,
+}
+
+impl Default for ItemInfo {
+    fn default() -> Self {
+        Self {
+            EType: 0,
+            EStatus: 0,
+            TitlePtr: 0,
+            ComponentPtr: 0,
+            MaxComponentSize: 0,
+            Repetitions: 0,
+            Lapses: 0,
+            Interval: 0,
+            LastRepetition: 0,
+            LastRepDate: 0.0,
+            AF: [0; 6],
+            UF: [0; 6],
+            RepHistPtr: ptr::null_mut(),
+            ReferenceNo: 0,
+            FI: 0,
+            TotalPostpones: 0,
+            RecentPostpones: 0,
+            Comment: 0,
+            Template: 0,
+            ConceptGroup: 0,
+            ConceptNo: 0,
+            LinkNo: 0,
+            LastVisited: 0.0,
+            TasklistNo: 0,
+            TaskNo: 0,
+            RootArticle: 0,
+            _ElementDifficulty: [0; 6],
+            Ordinal: [0; 6],
+            _FirstGrade: 0,
+            TheElementNo: 0,
+            FirstRepetitionDay: 0,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
 pub struct OptimizationRecord {
     pub OFM: [u16; 400],
     pub RFM: [u16; 400],
@@ -67,8 +181,8 @@ pub struct OptimizationRecord {
 }
 
 impl Default for OptimizationRecord {
-    fn default() -> OptimizationRecord {
-        OptimizationRecord {
+    fn default() -> Self {
+        Self {
             OFM: [0; 400],
             RFM: [0; 400],
             Cases: [0; 400],
@@ -151,8 +265,8 @@ pub struct DataRecord {
 }
 
 impl Default for DataRecord {
-    fn default() -> DataRecord {
-        DataRecord {
+    fn default() -> Self {
+        Self {
             Total: 0,
             MemorizedCount: 0,
             AllocatedFileSpaceSlots: 0,
@@ -435,8 +549,8 @@ pub struct Database {
 }
 
 impl Default for Database {
-    fn default() -> Database {
-        Database {
+    fn default() -> Self {
+        Self {
             _unknown0: 0,
             hINF: 0,
             _unknown1: 0,
