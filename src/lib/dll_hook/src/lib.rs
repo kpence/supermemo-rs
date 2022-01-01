@@ -51,35 +51,94 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    foreign_fn!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, fn(u32, u32, *const DataRecord));
-
     // These have been confirmed to be necessary for avoiding errors and side effects
     // These also are TODO and not fully tested and verified
     {
         foreign_fn!(0x0042c3e8, DATE_NOW_FN, fn() -> f64);
 
         hijack!(0x0094da30, GET_ITEM_INFO, GetItemInfo,
-                (database: i32, element_number: i32) -> i32 {
-                    println!("Detour for GetItemInfo: ({} {})", database, element_number);
-                    // TODO This I think I'll lock in
-                    /*
-                    TODO
-                    What this will need to do:
-                    Set Database's ItemInfoOpened
-                    ...... TODO
-                    */
+                (database_addr: i32, element_number: i32, item_info_addr: i32) -> i32 {
+                    println!("Detour for GetItemInfo: ({} {} {})", database_addr, element_number, item_info_addr);
+
+                    // TODO This function will be incredibly important
+                    // TODO this is currently just sending mock data into item info (just for testing)
+                    let mut mock_item_info = ItemInfo { LastRepetition: 15330, EStatus:1, ..Default::default() };
+                    unsafe {
+                        std::ptr::write(item_info_addr as *mut ItemInfo, mock_item_info)
+                    };
+                    //println!("Resulting item_info: {:?}", mock_item_info);
                     0
                 }
         );
     }
 
-    hijack!(0x008b09d8, COMPUTE_REPETITION_PARAMETERS, ComputeRepetitionParameters,
-            (param1: i32) -> i32 {
-                println!("Detour for ComputeRepetitionParameters: ({})", param1);
-                // TODO
-                0
-            }
-    );
+    // TODO for testing purpose only
+    {
+        foreign_fn!(0x008b0989, COMPUTE_REPETITION_PARAM_FN_PTR, fn(u32, u32, *const DataRecord));
+        hijack!(0x008b0989, COMPUTE_REPETITION_PARAM, ComputeRepetitionParam,
+                (item_optization_data_addr: i32) -> i32 {
+                    println!("Detour for ComputeRepetitionParam: {}", item_optization_data_addr);
+                    let result = register_call1((*COMPUTE_REPETITION_PARAM).detour.trampoline() as *const _ as usize, item_optization_data_addr);
+                    let item_optimization_data = unsafe {
+                        std::ptr::read(item_optization_data_addr as *mut ItemOptimizationData)
+                    };
+                    println!("RESULT OF ComputeRepetitionParam: {} {:?}", result, item_optimization_data);
+                    result
+                }
+        );
+    }
+    //foreign_fn!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, fn(u32, u32, *const DataRecord));
+    //hijack!(0x00950f80, GET_OPTIMIZATION_DATA, GetOptimizationData,
+    //        (database_addr: i32, element_number: i32, item_optization_data_addr: i32) -> i32 {
+    //            println!("Detour for GetOptimizationData: ({} {} {})",
+    //                     database_addr, element_number, item_optization_data_addr as u32);
+    //            let result = register_call3((*GET_OPTIMIZATION_DATA).detour.trampoline() as *const _ as usize, database_addr, element_number, item_optization_data_addr);
+    //            let item_optimization_data = unsafe {
+    //                std::ptr::read(item_optization_data_addr as *mut ItemOptimizationData)
+    //            };
+    //            println!("RESULT OF GetOptimizationData: {} {:?}", result, item_optimization_data);
+    //            result
+    //        }
+    //);
+
+
+    foreign_fn!(0x008afbc4, COMPUTE_NEW_INTERVAL_FN, fn(i32) -> i32);
+    //hijack!(0x008b158c, COMPUTE_USED_INTERVAL, ComputeUsedInterval,
+    //        (element_number: i32, today: i32, last_repetition: i32) -> i32 {
+    //            println!("Detour for ComputeUsedInterval: ({} {} {})",
+    //                     element_number, today, last_repetition);
+    //            // TODO
+    //            2
+    //        }
+    //);
+
+    foreign_fn!(0x008b158c, COMPUTE_USED_INTERVAL_FN, fn(i32, i32, i32) -> i32);
+    //hijack!(0x008b158c, COMPUTE_USED_INTERVAL, ComputeUsedInterval,
+    //        (element_number: i32, today: i32, last_repetition: i32) -> i32 {
+    //            println!("Detour for ComputeUsedInterval: ({} {} {})",
+    //                     element_number, today, last_repetition);
+    //            // TODO
+    //            2
+    //        }
+    //);
+
+    foreign_fn!(0x00955488, ALGORITHM_OUTCOMES_FN, fn(i32, i32, i32, i32) -> i32);
+    //hijack!(0x00955488, ALGORITHM_OUTCOMES, AlgorithmOutcomes,
+    //        (database: i32, element_number: i32, grade: i32, item_optimization_data: i32) -> i32 {
+    //            println!("Detour for AlgorithmOutcomes: ({} {} {} {})",
+    //                     database, element_number, grade, item_optimization_data);
+    //            // TODO
+    //            0
+    //        }
+    //);
+
+    //hijack!(0x008b09d8, COMPUTE_REPETITION_PARAMETERS, ComputeRepetitionParameters,
+    //        (param1: i32) -> i32 {
+    //            println!("Detour for ComputeRepetitionParameters: ({})", param1);
+    //            // TODO
+    //            0
+    //        }
+    //);
 
     hijack!(
         0x00b23340, ENTRY_POINT, EntryPoint,
@@ -91,60 +150,49 @@ fn init() {
             println!("--- ");
             //let result = register_call4_f64((*ALGORITHM_OUTCOMES).fn_ptr as usize, 11,22,33,44);
             // Set up a proper testing enviroment and taking advice of properties and fixtures
-            let mock_optimization_record = OptimizationRecord { ..Default::default() };
-            let mock_item_optimization_data = ItemOptimizationData { ..Default::default() };
+            let mut mock_optimization_record = OptimizationRecord { ..Default::default() };
             let mock_data_record = DataRecord { ..Default::default() };
-            //let result = register_call4_f64((*ALGORITHM_OUTCOMES).detour.trampoline() as *const _ as usize, 1,2,3,&mock_item_optimization_data as *const _ as i32);
-            //println!("The new value of item opt data's grade: {}", mock_item_optimization_data.TheGrade);
-            //let _ = register_call3((*GET_OPTIMIZATION_DATA).fn_ptr as usize, 11,22,33);
-            //println!("heres the detour. put your code in here");
-            //let result: f64 = (*TEST_FN_PTR)(0.0,0.0,0.0);
-            //println!("result: {}", result);
-            //let result: f64 = (*TEST_FN_PTR)(1.0,1.0,1.0);
-            //println!("result: {}", result);
-            //let result: f64 = (*TEST_FN_PTR)(5.0,1.5,1.5);
-            //println!("result: {}", result);
-            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 55, 64);
-            //println!("result(55,64): {}", result);
-            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 40, 1);
-            //println!("result(40,0): {}", result);
-            //let result = register_call2_f64(*TEST2_FN_PTR as usize, 30, 0);
-            //println!("result(30,0): {}", result);
+            let mut mock_database = Database { SessionToday: 1, ..Default::default() };
 
-            //for i in 0..10 {
-            //    let result = register_call1(*GRADE_BIT_FLAG_FN_PTR as usize, i);
-            //    println!("Grade bit flag result({}): {}", i, result);
+            let new_optimization_records_ptr = 0xca4548 as *mut *mut OptimizationRecord;
+            unsafe {
+                std::ptr::write(new_optimization_records_ptr, &mut mock_optimization_record)
+            };
+            let database_ptr = 0xca60d0 as *mut *mut Database;
+            unsafe {
+                std::ptr::write(database_ptr, &mut mock_database)
+            };
+
+            // TODO Compute Used Interval testing
+            //{
+            //    let element_number = 1;
+            //    let today = 1;
+            //    let last_repetition = 1;
+            //    let result = register_call3((*COMPUTE_USED_INTERVAL_FN) as usize, element_number,today,last_repetition);
+            //    println!("Result of calling COMPUTE_USED_INTERVAL_FN(1,1,1) = {}", result);
             //}
 
-            //let result = register_call1((*COMPUTE_REPETITION_PARAMETERS).detour.trampoline() as *const _ as usize, &mock_item_optimization_data as *const _ as i32);
-            let new_optimization_records_ptr = 0xca4548 as *mut OptimizationRecord;
-            unsafe {
-                std::ptr::write(new_optimization_records_ptr, mock_optimization_record);
+            // TODO Compute New Interval testing
+            //{
+            //    let mock_item_optimization_data = ItemOptimizationData { UsedInterval: 1, ..Default::default() };
+            //    let result = register_call1((*COMPUTE_NEW_INTERVAL_FN) as usize, &mock_item_optimization_data as *const _ as i32);
+            //    println!("Result of calling COMPUTE_NEW_INTERVAL_FN() = {}", result);
+            //}
+
+            // TODO Testing Get optimization data
+            {
+                println!("Database before call: {:?}", mock_database);
+                //let result = register_call4((*ALGORITHM_OUTCOMES_FN) as usize, &mock_database as *const _ as i32, 0, 3, &mock_data_record as *const _ as i32);
+
+                let mut mock_item_optimization_data = ItemOptimizationData { UsedInterval: 1, ..Default::default() };
+                println!("before running functions: mock_item_optimization_data {:?}", mock_item_optimization_data);
+
+                //let result = register_call3((*GET_OPTIMIZATION_DATA_FN_PTR) as usize, &mock_database as *const _ as i32, 0, &mut mock_item_optimization_data as *mut _ as i32);
+                let result = register_call4((*ALGORITHM_OUTCOMES_FN) as usize, &mock_database as *const _ as i32, 0, 3, &mut mock_item_optimization_data as *mut _ as i32);
+
+                println!("finished compute repetition parameters: mock_item_optimization_data {:?}", mock_item_optimization_data);
             }
-            let result = register_call3((*GET_OPTIMIZATION_DATA_FN_PTR) as usize, 0, 0, &mock_data_record as *const _ as i32);
-            println!("finished compute repetition parameters: MockDataRecord {:?}", mock_item_optimization_data);
 
-            //let result = register_call1((*FIRST_INTERVAL_VECTOR).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
-            //let result = register_call1((*D_FACTOR_1).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
-            //let result = register_call1((*RECOMPUTE_O_F_MATRIX).detour.trampoline() as *const _ as usize, &mock_optimization_record as *const _ as i32);
-            //println!("finished compute repetition parameters: NewAFactor {}", mock_item_optimization_data.NewAFactor);
-
-            //let relative_distance: u32 = std::ptr::read(((*TEST_DETOUR2_FN_PTR as usize) + 1) as *const u32);
-            //let address: u32 = (*TEST_DETOUR2_FN_PTR as u32) + relative_distance + 5;
-            //pretty_print_code_at_address(address, 160);
-            //println!("--- ");
-            //let relative_distance: u32 = std::ptr::read(((*TEST2_FN_PTR as usize) + 1) as *const u32);
-            //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
-            //pretty_print_code_at_address(address, 160);
-            //println!("--- ");
-            //let address: u32 = test_detour2_fn as u32;
-            //pretty_print_code_at_address(address, 100);
-            //println!("--- ");
-            //let address: u32 = *TEST2_FN_PTR as u32;
-            //pretty_print_code_at_address(address, 148);
-            //println!("--- ");
-
-            //println!("F({}, {}) result: {}", 1, 0, result);
             std::process::exit(0)
         }
     );
