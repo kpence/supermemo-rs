@@ -52,8 +52,7 @@ pub trait Trampoline1 {
             "push ebp;
                 mov ebp, esp",
             "push eax;
-                call {};
-                add esp, 4",
+                call {}",
             "mov esp, ebp;
                 pop ebp;
                 ret",
@@ -73,8 +72,7 @@ pub trait Trampoline1F64 {
             "push ebp;
                 mov ebp, esp",
             "push eax;
-                call {};
-                add esp, 4",
+                call {}",
             "sub esp, 8;
                 fstp qword ptr [esp];
                 movsd xmm0, qword ptr [esp];
@@ -99,8 +97,7 @@ pub trait Trampoline2 {
                 mov ebp, esp",
             "push edx;
                 push eax;
-                call {};
-                add esp, 8",
+                call {}",
             "mov esp, ebp;
                 pop ebp;
                 ret",
@@ -121,12 +118,10 @@ pub trait Trampoline2F64 {
                 mov ebp, esp",
             "push edx;
                 push eax;
-                call {};
-                add esp, 8",
+                call {}",
             "sub esp, 8;
                 fstp qword ptr [esp];
-                movsd xmm0, qword ptr [esp];
-                add esp, 8",
+                movsd xmm0, qword ptr [esp];",
             "mov esp, ebp;
                 pop ebp;
                 ret",
@@ -148,8 +143,7 @@ pub trait Trampoline3 {
             "push ecx;
                 push edx;
                 push eax;
-                call {};
-                add esp, 12",
+                call {}",
             "mov esp, ebp;
                 pop ebp;
                 ret",
@@ -171,8 +165,7 @@ pub trait Trampoline3F64 {
             "push ecx;
                 push edx;
                 push eax;
-                call {};
-                add esp, 12",
+                call {}",
             "sub esp, 8;
                 fstp qword ptr [esp];
                 movsd xmm0, qword ptr [esp];
@@ -199,8 +192,7 @@ pub trait Trampoline4 {
                 push ecx;
                 push edx;
                 push eax;
-                call {};
-                add esp, 16",
+                call {}",
             "mov esp, ebp;
                 pop ebp;
                 ret",
@@ -223,8 +215,7 @@ pub trait Trampoline4F64 {
                 push ecx;
                 push edx;
                 push eax;
-                call {};
-                add esp, 16",
+                call {}",
             "sub esp, 8;
                 fstp qword ptr [esp];
                 movsd xmm0, qword ptr [esp];
