@@ -26,7 +26,8 @@ use winapi::um::winuser::{
 };
 
 use std::ptr::null_mut;
-use std::ffi::OsStr;
+use std::os::raw::c_char;
+use std::ffi::{CString, CStr, OsStr};
 use std::os::windows::ffi::OsStrExt as _;
 
 // define dllmain to handle the init action
@@ -53,9 +54,18 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
 fn init() {
     println!("Initializing..");
 
-    // These have been confirmed to be necessary for avoiding errors and side effects
-    // These also are TODO and not fully tested and verified
     {
+        // TODO This is for stuff that loads data from my files
+        // TODO 961454
+    }
+    {
+        // TODO Calls from OnEntry
+        hijack!(0x00b0dc10, FILE_B0DC10, FileB0dc10, () -> i32 {println!("Detour for FileB0dc10..."); 0});
+        hijack!(0x0072127c, READ_YOUTUBE_SCRIPT, ReadYoutubeScript, () -> i32 {println!("Detour for ReadYoutubeScript..."); 0});
+    }
+    {
+        // These have been confirmed to be necessary for avoiding errors and side effects
+        // These also are TODO and not fully tested and verified
         foreign_fn!(0x0042c3e8, DATE_NOW_FN, fn() -> f64);
 
         hijack!(0x0094da30, GET_ITEM_INFO, GetItemInfo,
@@ -72,10 +82,12 @@ fn init() {
                     0
                 }
         );
+        // TODO Hijack database path, and mount a volume to your docker with the path and then override databasepath to point to that
+        // TODO ParamStr - Override this maybe, or make sure you document how it is used??
     }
 
     // TODO For testing, but I might keep
-    //foreign_fn!(0x00950f80, GET_OPTIMIZATION_DATA_FN_PTR, fn(u32, u32, *const DataRecord));
+    //foreign_fn!(0x00950f80, GET_OPTIMIZATION_DATA_FN, fn(u32, u32, *const DataRecord));
     hijack!(0x00950f80, GET_OPTIMIZATION_DATA, GetOptimizationData,
             (database_addr: i32, element_number: i32, item_optization_data_addr: i32) -> i32 {
                 println!("Detour for GetOptimizationData: ({} {} {})",
@@ -91,7 +103,7 @@ fn init() {
 
 
     // TODO for testing purpose only, I might delete this soon
-    //foreign_fn!(0x008b09d8, COMPUTE_REPETITION_PARAM_FN_PTR, fn(u32));
+    //foreign_fn!(0x008b09d8, COMPUTE_REPETITION_PARAM_FN, fn(u32));
     //hijack!(0x008b09d8, COMPUTE_REPETITION_PARAM, ComputeRepetitionParam,
     //        (item_optimization_data_addr: i32) -> i32 {
     //            let item_optimization_data = unsafe {
@@ -159,13 +171,16 @@ fn init() {
     //            0
     //        }
     //);
+    // TODO this is just for a quick test of string types
+    foreign_fn!(0x00427548, LOWER_CASE_FN, fn(i32, i32) -> i32);
+    foreign_fn!(0x0040d71c, U_STR_SET_LENGTH, fn(i32, i32) -> i32);
 
     hijack!(
         0x00b23340, ENTRY_POINT, EntryPoint,
         () -> i32 {
             //test_test2_fn(1,5);
-            //let relative_distance: u32 = std::ptr::read(((*TEST2_FN_PTR as usize) + 1) as *const u32);
-            //let address: u32 = (*TEST2_FN_PTR as u32) + relative_distance + 5;
+            //let relative_distance: u32 = std::ptr::read(((*TEST2_FN as usize) + 1) as *const u32);
+            //let address: u32 = (*TEST2_FN as u32) + relative_distance + 5;
             //pretty_print_code_at_address(address, 160);
             println!("--- ");
             //let result = register_call4_f64((*ALGORITHM_OUTCOMES).fn_ptr as usize, 11,22,33,44);
@@ -216,11 +231,77 @@ fn init() {
                 let mut mock_item_optimization_data = ItemOptimizationData { UsedInterval: 1, ..Default::default() };
                 println!("before running functions: mock_item_optimization_data {:?}", mock_item_optimization_data);
 
-                //let result = register_call3((*GET_OPTIMIZATION_DATA_FN_PTR) as usize, &mock_database as *const _ as i32, 0, &mut mock_item_optimization_data as *mut _ as i32);
-                let result = register_call4((*ALGORITHM_OUTCOMES_FN) as usize, &mock_database as *const _ as i32, 1, 2, &mut mock_item_optimization_data as *mut _ as i32);
+                //let result = register_call3((*GET_OPTIMIZATION_DATA_FN) as usize, &mock_database as *const _ as i32, 0, &mut mock_item_optimization_data as *mut _ as i32);
 
+                let result = register_call4((*ALGORITHM_OUTCOMES_FN) as usize, &mock_database as *const _ as i32, 1, 2, &mut mock_item_optimization_data as *mut _ as i32);
                 println!("finished compute repetition parameters: mock_item_optimization_data {:?}", mock_item_optimization_data);
-                println!("At the end of my entry point test, this is what mock_temporary_optimization_record = {:?}", mock_temporary_optimization_record);
+                println!("After calling ALGORITHM_OUTCOMES, this is what mock_tempor:ary_optimization_record = {:?}", mock_temporary_optimization_record);
+
+                // TODO Testing UnicodeString
+                {
+                    //{
+                    //    let mut lower_case_result = empty_delphi_utf16_string();
+                    //    let mut utf16 = into_delphi_utf16_string(String::from("HELLO"));
+                    //    register_call2((*LOWER_CASE_FN) as usize, &mut utf16 as *mut _ as i32, &mut lower_case_result as *mut _ as i32);
+                    //    println!("Test: 'HELLO' = {:?}", utf16);
+                    //    println!("Test: LOWER_CASE('HELLO') = {:?}", lower_case_result);
+                    //    println!("Test: LOWER_CASE('HELLO') = {}", unsafe { &from_delphi_utf16_string(&lower_case_result, 4) });
+                    //    let mut lower_case_result = empty_delphi_utf16_string();
+                    //    let mut utf16 = into_delphi_utf16_string(String::from("HELLO fdsafdsafjlk;a TREWTQWTEWQ FVDSAFDSA LJSDAJFGLKJDSAJL"));
+                    //    register_call2((*LOWER_CASE_FN) as usize, &mut utf16 as *mut _ as i32, &mut lower_case_result as *mut _ as i32);
+                    //    println!("Test2: LOWER_CASE('HELLO') = {:?}", lower_case_result);
+                    //    println!("Test2: LOWER_CASE('HELLO') = {:?}", lower_case_result);
+                    //    println!("Test2: LOWER_CASE('HELLO') = {}", unsafe { &from_delphi_utf16_string(&lower_case_result, 4) });
+                    //}
+                    //let mut empty_string = empty_delphi_utf8_string();
+                    //register_call2((*U_STR_SET_LENGTH) as usize, &mut empty_string as *mut _ as i32, 5);
+                    //println!("Test3: U_STR_SET_LENGTH = {:?}", empty_string);
+
+                    //unsafe {
+                    //    let p = utf16.as_ptr() as *mut u16;
+                    //    for i in 0..14 {
+                    //        let v = std::ptr::read(p.add(i));
+                    //        println!("Test4 -- HELLO UnicodeString before {}: {:x}", i, v)
+                    //    }
+                    //}
+
+                    //let mut utf16 = UnicodeString::from("HELLO world");
+                    //let mut result = UnicodeString::default();
+                    ////let mut result = UnicodeString::default();
+                    //register_call2((*LOWER_CASE_FN) as usize, unsafe { utf16.buffer_ptr() } as i32, result.as_ptr() as i32);
+                    //println!("Test4: 'HELLO world' after = {:?}, len: {}", String::from(&result), result.len());
+
+                    ////let mut utf16 = from_delphi_utf16_string(utf16);
+                    ////println!("Test4: 'HELLO' after = {:?}", utf16);
+
+                    ////let mut utf16 = into_delphi_utf16_string(String::from("HELLO WORLD"));
+                    ////println!("Test5: 'HELLO WORLD' before = {:?}", utf16);
+                    //let mut utf16 = UnicodeString::from("tELLO");
+
+                    //let mut utf16 = UnicodeString::from("F");
+                    //unsafe {
+                    //    let p = utf16.as_ptr() as *mut u16;
+                    //    for i in 0..14 {
+                    //        let v = std::ptr::read(p.add(i));
+                    //        println!("Test4 -- HELLO UnicodeString before {}: {:x}", i, v)
+                    //    }
+                    //}
+
+                    //let mut utf16 = UnicodeString::from("tELLO");
+                    let mut result = UnicodeString::default();
+                    let mut utf16 = UnicodeString::from("C:\\FDASFSDAFDS\\FDSAFDSAFDSA\\FDSAFSDAFDS\\fdsa.txt");
+                    register_call2((*LOWER_CASE_FN) as usize, unsafe { utf16.buffer_ptr() } as i32, result.as_ptr() as i32);
+                    println!("Test4: 'HELLO world' after = {:?}, len: {}", String::from(&result), result.len());
+
+                    //register_call2((*U_STR_SET_LENGTH) as usize, utf16.as_ptr() as i32, 7);
+                    //println!("Test5: After call..");
+                    //println!("Test5: 'test' = {:?}", String::from(&utf16));
+                    //let mut utf16 = UnicodeString::from("HELLO");
+                    //register_call2((*U_STR_SET_LENGTH) as usize, utf16.as_ptr() as i32, 11);
+                    //println!("Test5: 'HELLO' after = {:?}", String::from(&utf16));
+                }
+
+                println!("Reached end of entry point tests.");
             }
 
             std::process::exit(0)
