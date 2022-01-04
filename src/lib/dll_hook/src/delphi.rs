@@ -480,6 +480,37 @@ pub fn register_call1(ptr: usize, arg1: i32) -> i32 {
     ret_val
 }
 
+pub fn register_call1_f64(ptr: usize, arg1: i32) -> f64 {
+    let ret_val: f64;
+    unsafe {
+        core::arch::asm!(
+            "finit; call {f}",
+            f = in(reg) ptr,
+            in("eax") arg1,
+            lateout("eax") _,
+            out("ecx") _,
+            lateout("edx") _,
+            out("st(0)") _,
+            out("st(1)") _,
+            out("st(2)") _,
+            out("st(3)") _,
+            out("st(4)") _,
+            out("st(5)") _,
+            out("st(6)") _,
+            out("st(7)") _,
+            out("xmm0") ret_val,
+            out("xmm1") _,
+            out("xmm2") _,
+            out("xmm3") _,
+            out("xmm4") _,
+            out("xmm5") _,
+            out("xmm6") _,
+            out("xmm7") _
+        );
+    }
+    ret_val
+}
+
 pub fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
     let ret_val: i32;
     unsafe {

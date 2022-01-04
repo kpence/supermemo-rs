@@ -764,3 +764,20 @@ pub struct Queue {
     pub THugeArray: u32,
     pub Filename: u8,
 }
+
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct SMMain {
+    pub _unknown: [u8; 0xcf2],
+    pub _unknown_ptr: *mut u32
+}
+
+impl Default for SMMain {
+    fn default() -> Self {
+        Self {
+            _unknown: [0; 0xcf2],
+            _unknown_ptr: ptr::null_mut(),
+        }
+    }
+}
