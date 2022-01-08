@@ -827,4 +827,32 @@ macro_rules! hijack {
         hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4, register_call4,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
+    (
+        $ADDR:expr,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
+        ($($ARG:ident:$ARG_TY:ty),*) -> $RET_TY:ty
+    ) => {
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME,
+                ($($ARG:ident:$ARG_TY:ty),*) -> $RET_TY:ty {
+                    println!("Detour for {}: {}", stringify!($HOOK_STRUCT_NAME), arg1);
+                    let result = $HOOK_STATIC_INSTANCE_NAME.call_trampoline($($ARG),*);
+                    println!("Reached end of detour for {}. Result = {}", stringify!($HOOK_STRUCT_NAME), result);
+                    result
+        })
+    };
+    (
+        $ADDR:expr,
+        $HOOK_STATIC_INSTANCE_NAME:ident,
+        $HOOK_STRUCT_NAME:ident,
+        ($($ARG:ident:$ARG_TY:ty),*)
+    ) => {
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME,
+                ($($ARG:ident:$ARG_TY:ty),*) {
+                    println!("Detour for {}: {}", stringify!($HOOK_STRUCT_NAME), $($ARG),*);
+                    $HOOK_STATIC_INSTANCE_NAME.call_trampoline($($ARG),*);
+                    println!("Reached end of detour for {}.", stringify!($HOOK_STRUCT_NAME));
+                    result
+                })
+    };
 }
