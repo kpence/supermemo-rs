@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
 name = "cc"
 version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -28,7 +34,7 @@ checksum = "f3c83fabcc3bc336e19320c13576ea708a15deec201d6b879b7ad1b92734d7b9"
 dependencies = [
  "cfg-if",
  "generic-array",
- "lazy_static 1.4.0",
+ "lazy_static",
  "libc",
  "libudis86-sys",
  "mmap-fixed",
@@ -40,14 +46,16 @@ dependencies = [
 name = "dll_hook"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "detour",
  "gcc",
  "iced-x86",
  "kernel32-sys",
- "lazy_static 0.2.11",
+ "lazy_static",
  "libc",
  "user32-sys 0.1.3",
  "winapi 0.3.9",
+ "winsafe",
 ]
 
 [[package]]
@@ -83,7 +91,7 @@ version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46e977036f7f5139d580c7f19ad62df9cb8ebd8410bb569e73585226be80a86f"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
  "static_assertions",
 ]
 
@@ -96,12 +104,6 @@ dependencies = [
  "winapi 0.2.8",
  "winapi-build",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
 
 [[package]]
 name = "lazy_static"
@@ -249,3 +251,9 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "winsafe"
+version = "0.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35299c1fa85ff3e059ab407c74b549834b012c6c17d45c7a6488e5d117e49ec5"
