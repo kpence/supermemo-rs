@@ -369,6 +369,7 @@ pub trait Trampoline4F64 {
     }
 }
 
+#[allow(dead_code)]
 pub fn register_call0(ptr: usize) -> i32 {
     let ret_val: i32;
     unsafe {
@@ -399,6 +400,7 @@ pub fn register_call0(ptr: usize) -> i32 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call0_f64(ptr: usize) -> f64 {
     let ret_val: f64;
     unsafe {
@@ -429,6 +431,7 @@ pub fn register_call0_f64(ptr: usize) -> f64 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call1(ptr: usize, arg1: i32) -> i32 {
     let ret_val: i32;
     unsafe {
@@ -460,6 +463,7 @@ pub fn register_call1(ptr: usize, arg1: i32) -> i32 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call1_f64(ptr: usize, arg1: i32) -> f64 {
     let ret_val: f64;
     unsafe {
@@ -491,6 +495,7 @@ pub fn register_call1_f64(ptr: usize, arg1: i32) -> f64 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
     let ret_val: i32;
     unsafe {
@@ -523,6 +528,7 @@ pub fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
     let ret_val: f64;
     unsafe {
@@ -555,6 +561,7 @@ pub fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call3(ptr: usize, arg1: i32, arg2: i32, arg3: i32) -> i32 {
     let ret_val: i32;
     unsafe {
@@ -588,6 +595,7 @@ pub fn register_call3(ptr: usize, arg1: i32, arg2: i32, arg3: i32) -> i32 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call3_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32) -> f64 {
     let ret_val: f64;
     unsafe {
@@ -621,6 +629,7 @@ pub fn register_call3_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32) -> f64 {
     ret_val
 }
 
+#[allow(dead_code)]
 pub fn register_call4(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> i32 {
     let ret_val: i32;
     unsafe {
@@ -656,6 +665,7 @@ pub fn register_call4(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) ->
 }
 
 // TODO We should use the ptr to the function instead of a usize in order to prevent using the wrong register call function (e.g. f64 instead of i32 output
+#[allow(dead_code)]
 pub fn register_call4_f64(ptr: usize, arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> f64 {
     let ret_val: f64;
     unsafe {
@@ -711,7 +721,9 @@ macro_rules! hijack {
         ($($ARG:ident:$ARG_TY:ty),*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
         struct $HOOK_STRUCT_NAME {
+            #[allow(dead_code)]
             fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?,
+            #[allow(dead_code)]
             detour: RawDetour,
         }
 
@@ -729,6 +741,7 @@ macro_rules! hijack {
                 }
             }
 
+            #[allow(dead_code)]
             fn call_trampoline(&self, $($ARG:$ARG_TY),*) $(-> $RET_TY)? {
                 $ORIGINAL_FN_CALLER(self.detour.trampoline() as *const _ as usize, $($ARG),*)
             }
@@ -739,7 +752,8 @@ macro_rules! hijack {
                 $HOOK_STRUCT_NAME::new(std::mem::transmute::<usize, fn($($ARG_TY),*) $(-> $RET_TY)?>($ADDR))
             };
         );
-        unsafe { $HOOK_STATIC_INSTANCE_NAME.detour.enable().unwrap() };
+        #[allow(unused_unsafe)]
+        unsafe { $HOOK_STATIC_INSTANCE_NAME.detour.enable() }.unwrap();
     };
     (
         $ADDR:expr,
