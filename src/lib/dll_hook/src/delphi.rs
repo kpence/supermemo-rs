@@ -1,10 +1,11 @@
-#![feature(libc, asm, asm_sym, naked_functions)]
 pub use detour::*;
 //use crate::structs::{UnicodeString, UnicodeStringData};
-use std::ptr;
-use std::slice;
-use std::mem;
-use std::alloc::{alloc, dealloc, Layout, LayoutError};
+use std::{
+    ptr,
+    slice,
+    mem,
+    alloc::Layout,
+};
 
 // source: https://gist.github.com/thomcc/af7f05e308b95a1c2b935cbd1a8cf3b6
 #[repr(C)]
@@ -153,7 +154,7 @@ pub trait Trampoline0 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -176,7 +177,7 @@ pub trait Trampoline0F64 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -196,7 +197,7 @@ pub trait Trampoline1 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -220,7 +221,7 @@ pub trait Trampoline1F64 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -241,7 +242,7 @@ pub trait Trampoline2 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -265,7 +266,7 @@ pub trait Trampoline2F64 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -287,7 +288,7 @@ pub trait Trampoline3 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -313,7 +314,7 @@ pub trait Trampoline3F64 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -336,7 +337,7 @@ pub trait Trampoline4 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
@@ -363,7 +364,7 @@ pub trait Trampoline4F64 {
                 pop ebp;
                 ret",
             sym Self::real_func,
-            clobber_abi("C"),
+            //clobber_abi("C"),
             options(noreturn)
         );
     }
