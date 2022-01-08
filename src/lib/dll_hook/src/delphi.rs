@@ -140,54 +140,6 @@ impl From<&UnicodeString> for String {
     }
 }
 
-// TODO maybe use some object oriented programming for this
-//pub unsafe fn from_delphi_utf16_string(s: *const u8) -> String {
-//    let len: usize = (s.add(12) as *mut u16).read() as usize;
-//    let mut utf16: Vec<u16> = Vec::with_capactiy(len);
-//    utf16.push(0);
-//    String::from_utf16_lossy(slice::from_raw_parts(s.add(16) as *const u16,  as usize))
-//}
-//pub unsafe fn from_delphi_utf16_string(s: *const UnicodeString) -> String {
-//    use core::ptr::addr_of;
-//    assert_eq!(addr_of!((*s).bytes_per_char).read(), 2);
-//    let u16s_ptr = addr_of!((*s).buffer) as *const u16;
-//    let num_u16s = addr_of!((*s).len).read() as usize;
-//    let slice: &[u16] = slice::from_raw_parts(u16s_ptr, num_u16s);
-//    String::from_utf16_lossy(slice)
-//}
-//
-//pub unsafe fn empty_delphi_utf16_string() -> *mut u8 {
-//    // TODO this needs to be tested
-//    //let mut s = into_delphi_utf8_string(String::from(""));
-//    //s
-//    let layout = Layout::from_size_align(16, 1).unwrap();
-//    let ptr = alloc(layout);
-//    *(ptr as *mut u32) = 0;
-//    *(ptr.add(4) as *mut u16) = 0x04b0;
-//    *(ptr.add(6) as *mut u16) = 2;
-//    *(ptr.add(8) as *mut u32) = 1;
-//    *(ptr.add(12) as *mut u32) = 0;
-//    ptr
-//    //dealloc(ptr, layout);
-//}
-//
-pub unsafe fn into_delphi_utf16_string(mut s: String) -> *mut u8 {
-    let mut utf16: Vec<u16> = s.encode_utf16().collect();
-    utf16.push(0);
-    let layout = Layout::from_size_align(2*utf16.len() + 16, 1).unwrap();
-    let ptr = alloc(layout) as *mut u8;
-    *(ptr as *mut u32) = (ptr as u32) + 16;
-    *(ptr.add(4) as *mut u16) = 0x04b0;
-    *(ptr.add(6) as *mut u16) = 2;
-    *(ptr.add(8) as *mut u32) = 1;
-    *(ptr.add(12) as *mut u32) = utf16.len() as u32;
-    for i in 0..utf16.len() {
-        *(ptr.add(16 + i*2) as *mut u16) = utf16[i];
-    }
-    ptr
-    //dealloc(ptr, layout);
-}
-
 pub trait Trampoline0 {
     unsafe extern "C" fn real_func() -> i32;
 
@@ -417,14 +369,42 @@ pub trait Trampoline4F64 {
     }
 }
 
-pub fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
+pub fn register_call0(ptr: usize) -> i32 {
+    let ret_val: i32;
+    unsafe {
+        core::arch::asm!(
+            "finit; call {f}",
+            f = in(reg) ptr,
+            lateout("eax") ret_val,
+            out("ecx") _,
+            lateout("edx") _,
+            out("st(0)") _,
+            out("st(1)") _,
+            out("st(2)") _,
+            out("st(3)") _,
+            out("st(4)") _,
+            out("st(5)") _,
+            out("st(6)") _,
+            out("st(7)") _,
+            out("xmm0") _,
+            out("xmm1") _,
+            out("xmm2") _,
+            out("xmm3") _,
+            out("xmm4") _,
+            out("xmm5") _,
+            out("xmm6") _,
+            out("xmm7") _
+        );
+    }
+    ret_val
+}
+
+pub fn register_call0_f64(ptr: usize) -> f64 {
     let ret_val: f64;
     unsafe {
         core::arch::asm!(
             "finit; call {f}",
             f = in(reg) ptr,
-            in("eax") arg1,
-            in("edx") arg2,
             lateout("eax") _,
             out("ecx") _,
             lateout("edx") _,
@@ -531,6 +511,38 @@ pub fn register_call2(ptr: usize, arg1: i32, arg2: i32) -> i32 {
             out("st(6)") _,
             out("st(7)") _,
             out("xmm0") _,
+            out("xmm1") _,
+            out("xmm2") _,
+            out("xmm3") _,
+            out("xmm4") _,
+            out("xmm5") _,
+            out("xmm6") _,
+            out("xmm7") _
+        );
+    }
+    ret_val
+}
+
+pub fn register_call2_f64(ptr: usize, arg1: i32, arg2: i32) -> f64 {
+    let ret_val: f64;
+    unsafe {
+        core::arch::asm!(
+            "finit; call {f}",
+            f = in(reg) ptr,
+            in("eax") arg1,
+            in("edx") arg2,
+            lateout("eax") _,
+            out("ecx") _,
+            lateout("edx") _,
+            out("st(0)") _,
+            out("st(1)") _,
+            out("st(2)") _,
+            out("st(3)") _,
+            out("st(4)") _,
+            out("st(5)") _,
+            out("st(6)") _,
+            out("st(7)") _,
+            out("xmm0") ret_val,
             out("xmm1") _,
             out("xmm2") _,
             out("xmm3") _,
@@ -695,6 +707,7 @@ macro_rules! hijack {
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
         $TRAMPOLINE_TYPE: ident,
+        $ORIGINAL_FN_CALLER: ident,
         ($($ARG:ident:$ARG_TY:ty),*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
         struct $HOOK_STRUCT_NAME {
@@ -715,6 +728,10 @@ macro_rules! hijack {
                     },
                 }
             }
+
+            fn call_trampoline(&self, $($ARG:$ARG_TY),*) $(-> $RET_TY)? {
+                $ORIGINAL_FN_CALLER(self.detour.trampoline() as *const _ as usize, $($ARG),*)
+            }
         }
 
         lazy_static!(
@@ -730,7 +747,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         () -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, () -> f64 {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, register_call0_f64, () -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -738,7 +755,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         () $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, () $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, register_call0, () $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -746,7 +763,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, register_call1_f64, ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -754,7 +771,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, ($ARG1:$ARG1_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, register_call1, ($ARG1:$ARG1_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -762,7 +779,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64, register_call2_f64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -771,7 +788,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2, register_call2,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
@@ -780,7 +797,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64, register_call3_f64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -789,7 +806,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3, register_call3,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
     (
@@ -798,7 +815,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64, register_call4_f64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -807,7 +824,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4, register_call4,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) $(-> $RET_TY)? {$($BLOCK)*})
     };
 }
