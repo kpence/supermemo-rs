@@ -1,5 +1,6 @@
 //pub use ::*;
 
+#[allow(dead_code)]
 fn pretty_print_code_at_address(address: u32, size: u32) {
     let mut code: Vec<u8> = Vec::with_capacity(size as usize);
     for i in 0..size {
@@ -9,6 +10,7 @@ fn pretty_print_code_at_address(address: u32, size: u32) {
     pretty_print_code(&code[..]);
 }
 
+#[allow(dead_code)]
 fn pretty_print_code(code: &[u8]) {
     use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
     let code: &[u8] = &code[..];
