@@ -22,7 +22,7 @@ use winapi::um::winnt::{
     PROCESS_ALL_ACCESS,
 };
 
-use log::debug;
+//use log::debug;
 use widestring::WideCString;
 
 macro_rules! werr {
@@ -65,8 +65,8 @@ pub fn spawn_process(exe_path: &str, proc_flags: u32) -> io::Result<HANDLE> {
     let cmd = CString::new(exe_path).unwrap();
     let result = unsafe {
         wproc::CreateProcessA(
-            cmd.into_raw(),
             ptr::null_mut(),
+            cmd.into_raw(),
             ptr::null_mut(),
             ptr::null_mut(),
             0,
@@ -141,7 +141,7 @@ pub fn inject(proc: HANDLE, dll: &Path) -> io::Result<()> {
         synchapi::WaitForSingleObject(hthread, 10000);
 
         // the next few line are for checking which dlls are being used by the target process
-        let mut modules = vec![0u32; 1024];
+        let modules = vec![0u32; 1024];
         let mut bneeded: u32 = 0;
         psapi::EnumProcessModulesEx(proc, modules.as_ptr() as *mut _, 1024 * 4, &mut bneeded, psapi::LIST_MODULES_ALL);
         println!("bneeded: {}", bneeded);
@@ -167,14 +167,15 @@ fn main() {
     // Print text to the console
     println!("Starting process...");
     //match spawn_process("C:\\Users\\wineuser\\target.exe", CREATE_NO_WINDOW | CREATE_SUSPENDED) {
-    match spawn_process("C:\\Users\\wineuser\\target.exe", CREATE_NO_WINDOW) {
+    //let _ = spawn_process("C:\\Users\\wineuser\\ollydbg.exe", CREATE_NO_WINDOW | CREATE_SUSPENDED).unwrap();
+    //match spawn_process("C:\\Users\\wineuser\\sm18.exe C:\\Users\\wineuser\\system\\testitems.Kno", CREATE_NO_WINDOW) {
+    match spawn_process("C:\\Users\\wineuser\\sm18.exe", CREATE_NO_WINDOW) {
         Ok(handle) => {
             println!("Injecting now...");
             match inject(handle, Path::new("C:\\Users\\wineuser\\hook.dll")) {
                 Ok(_) => println!("Maybe successful injection"),
                 Err(e) => panic!("Error in inject function: {}", e)
             }
-            //let _ = spawn_process("C:\\Users\\wineuser\\ollydbg.exe", 0).unwrap();
             unsafe {
                 synchapi::WaitForSingleObject(handle, INFINITE);
             }

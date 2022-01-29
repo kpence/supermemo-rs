@@ -54,8 +54,8 @@ dependencies = [
  "lazy_static",
  "libc",
  "user32-sys 0.1.3",
+ "utf16_lit",
  "winapi 0.3.9",
- "winsafe",
 ]
 
 [[package]]
@@ -207,6 +207,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "utf16_lit"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14706d2a800ee8ff38c1d3edb873cd616971ea59eb7c0d046bb44ef59b06a1ae"
+
+[[package]]
 name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -251,9 +257,3 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "winsafe"
-version = "0.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35299c1fa85ff3e059ab407c74b549834b012c6c17d45c7a6488e5d117e49ec5"

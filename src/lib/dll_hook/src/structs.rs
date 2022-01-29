@@ -1,7 +1,8 @@
-#![feature(libc)]
-
-use libc::size_t;
-use std::ptr;
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::{
+    ptr,
+    io::{self, Read},
+};
 
 #[derive(Default, Debug, Copy, Clone)]
 #[allow(non_snake_case)]
@@ -163,6 +164,75 @@ impl Default for ItemInfo {
     }
 }
 
+// EType: u8,
+// EStatus: u8,
+// TitlePtr: u32,
+// ComponentPtr: u32,
+// MaxComponentSize: u16,
+// Repetitions: u16,
+// Lapses: u16,
+// Interval: u16,
+// LastRepetition: u16,
+// LastRepDate: f64,
+// AF: [u8; 6],
+// UF: [u8; 6],
+// RepHistPtr: *mut RepHistRecord,
+// ReferenceNo: u32,
+// FI: u8,
+// TotalPostpones: u32,
+// RecentPostpones: u32,
+// Comment: u32,
+// Template: u32,
+// ConceptGroup: u32,
+// ConceptNo: u32,
+// LinkNo: u32,
+// LastVisited: f64,
+// TasklistNo: u32,
+// TaskNo: u32,
+// RootArticle: u32,
+// _ElementDifficulty: [u8; 6],
+// Ordinal: [u8; 6],
+// _FirstGrade: u8,
+// TheElementNo: u32,
+// FirstRepetitionDay: u32,
+impl ItemInfo {
+    pub fn from_reader(mut rdr: impl Read) -> io::Result<Self> {
+        Ok(Self {
+            EType: rdr.read_u8()?,
+            EStatus: rdr.read_u8()?,
+            TitlePtr: rdr.read_u32::<LittleEndian>()?,
+            ComponentPtr: rdr.read_u32::<LittleEndian>()?,
+            MaxComponentSize: rdr.read_u16::<LittleEndian>()?,
+            Repetitions: rdr.read_u16::<LittleEndian>()?,
+            Lapses: rdr.read_u16::<LittleEndian>()?,
+            Interval: rdr.read_u16::<LittleEndian>()?,
+            LastRepetition: rdr.read_u16::<LittleEndian>()?,
+            LastRepDate: rdr.read_f64::<LittleEndian>()?,
+            AF: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            UF: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            RepHistPtr: rdr.read_u32::<LittleEndian>()? as *mut RepHistRecord,
+            ReferenceNo: rdr.read_u32::<LittleEndian>()?,
+            FI: rdr.read_u8()?,
+            TotalPostpones: rdr.read_u32::<LittleEndian>()?,
+            RecentPostpones: rdr.read_u32::<LittleEndian>()?,
+            Comment: rdr.read_u32::<LittleEndian>()?,
+            Template: rdr.read_u32::<LittleEndian>()?,
+            ConceptGroup: rdr.read_u32::<LittleEndian>()?,
+            ConceptNo: rdr.read_u32::<LittleEndian>()?,
+            LinkNo: rdr.read_u32::<LittleEndian>()?,
+            LastVisited: rdr.read_f64::<LittleEndian>()?,
+            TasklistNo: rdr.read_u32::<LittleEndian>()?,
+            TaskNo: rdr.read_u32::<LittleEndian>()?,
+            RootArticle: rdr.read_u32::<LittleEndian>()?,
+            _ElementDifficulty: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            Ordinal: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            _FirstGrade: rdr.read_u8()?,
+            TheElementNo: rdr.read_u32::<LittleEndian>()?,
+            FirstRepetitionDay: rdr.read_u32::<LittleEndian>()?,
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[allow(non_snake_case)]
 #[repr(C)]
@@ -178,6 +248,24 @@ pub struct OptimizationRecord {
     pub FirstGradeCases: [u16; 20],
     pub FIGradeGraph: [u16; 90],
     pub FIGradeCases: [u16; 30],
+}
+
+impl OptimizationRecord {
+    pub fn from_reader(mut rdr: impl Read) -> io::Result<Self> {
+        let mut optimization_record = OptimizationRecord::default();
+        for i in 0..400 { optimization_record.OFM[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..400 { optimization_record.RFM[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..400 { optimization_record.Cases[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..19 { optimization_record.DFM[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..19 { optimization_record.DFMCases[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..8000 { optimization_record.Ret[i] = rdr.read_u8()?; }
+        for i in 0..8000 { optimization_record.RetCases[i] = rdr.read_u8()?; }
+        for i in 0..60 { optimization_record.FirstGradeGraph[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..20 { optimization_record.FirstGradeCases[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..90 { optimization_record.FIGradeGraph[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..30 { optimization_record.FIGradeCases[i] = rdr.read_u16::<LittleEndian>()?; }
+        Ok(optimization_record)
+    }
 }
 
 impl Default for OptimizationRecord {
@@ -327,10 +415,10 @@ impl Default for DataRecord {
 #[allow(non_snake_case)]
 #[repr(C)]
 pub struct Database {
-    pub _unknown0: u32,
-    pub hINF: u32,
+    pub _unknown0: i32,
+    pub hINF: i32,
     pub _unknown1: u32,
-    pub Filespace: u32,
+    pub Filespace: *mut Filespace,
     pub Opened: bool,
     pub DuringEntry: bool,
     pub ResettingCollection: bool,
@@ -393,15 +481,9 @@ pub struct Database {
     pub OptimizationRecord: *mut OptimizationRecord,
     pub LastAutoSort: u32,
     pub LastAutoPostpone: u32,
-    pub RandomTestItems: u32,
+    pub RandomTestItems: *mut Items,
     pub RandomTestMode: u8,
-    pub KNOFileDate: u16,
-    pub _unknown56: u8,
-    pub _unknown57: u8,
-    pub _unknown58: u8,
-    pub _unknown59: u8,
-    pub _unknown60: u8,
-    pub _unknown61: u8,
+    pub KNOFileDate: f64,
     pub _unknown62: u8,
     pub _unknown63: u8,
     pub _unknown64: u8,
@@ -544,7 +626,7 @@ impl Default for Database {
             _unknown0: 0,
             hINF: 0,
             _unknown1: 0,
-            Filespace: 0,
+            Filespace: ptr::null_mut(),
             Opened: false,
             DuringEntry: false,
             ResettingCollection: false,
@@ -607,15 +689,9 @@ impl Default for Database {
             OptimizationRecord: ptr::null_mut(),
             LastAutoSort: 0,
             LastAutoPostpone: 0,
-            RandomTestItems: 0,
+            RandomTestItems: ptr::null_mut(),
             RandomTestMode: 0,
-            KNOFileDate: 0,
-            _unknown56: 0,
-            _unknown57: 0,
-            _unknown58: 0,
-            _unknown59: 0,
-            _unknown60: 0,
-            _unknown61: 0,
+            KNOFileDate: 0.0,
             _unknown62: 0,
             _unknown63: 0,
             _unknown64: 0,
@@ -754,6 +830,39 @@ impl Default for Database {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct Filespace {
+    pub _unknown: u32,
+    pub DB: *mut Database,
+    pub EmptySlots: *mut Queue,
+    pub PrimarySpace: *mut u16,
+    pub SecondarySpace: *mut u16,
+    pub EmptySlotsFile: u32,
+    pub AllocatedSlots: u32,
+    pub QuitChecks: bool,
+    pub DeformattedRTFs: u32,
+    pub DeformattedHTMs: u32,
+}
+
+impl Default for Filespace {
+    fn default() -> Self {
+        Self {
+            _unknown: 0,
+            DB: ptr::null_mut(),
+            EmptySlots: ptr::null_mut(),
+            PrimarySpace: ptr::null_mut(),
+            SecondarySpace: ptr::null_mut(),
+            EmptySlotsFile: 0,
+            AllocatedSlots: 0,
+            QuitChecks: false,
+            DeformattedRTFs: 0,
+            DeformattedHTMs: 0,
+        }
+    }
+}
+
 #[derive(Default, Debug, Copy, Clone)]
 #[allow(non_snake_case)]
 #[repr(C)]
@@ -778,6 +887,56 @@ impl Default for SMMain {
         Self {
             _unknown: [0; 0xcf2],
             _unknown_ptr: ptr::null_mut(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct BrowserParameters {
+    pub FirstDay: u16,
+    pub LastDay: u16,
+    pub DisplayMode: u8,
+    pub MinRange: u32,
+    pub MaxRange: u32,
+    pub PriorityLimit: f64,
+    pub SubsetFile: u32,
+    pub TheQueue: *mut Queue,
+}
+
+impl Default for BrowserParameters {
+    fn default() -> Self {
+        Self {
+            FirstDay: 0,
+            LastDay: 0,
+            DisplayMode: 0,
+            MinRange: 0,
+            MaxRange: 0,
+            PriorityLimit: 0.0,
+            SubsetFile: 0,
+            TheQueue: ptr::null_mut(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct Items {
+    pub _unknown: u32,
+    pub TheType: u8,
+    pub BrowserParams: BrowserParameters,
+    pub Items: *mut Queue,
+}
+
+impl Default for Items {
+    fn default() -> Self {
+        Self {
+            _unknown: 0,
+            TheType: 0,
+            BrowserParams: BrowserParameters::default(),
+            Items: ptr::null_mut(),
         }
     }
 }
