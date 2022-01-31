@@ -168,8 +168,8 @@ fn main() {
     println!("Starting process...");
     //match spawn_process("C:\\Users\\wineuser\\target.exe", CREATE_NO_WINDOW | CREATE_SUSPENDED) {
     //let _ = spawn_process("C:\\Users\\wineuser\\ollydbg.exe", CREATE_NO_WINDOW | CREATE_SUSPENDED).unwrap();
-    //match spawn_process("C:\\Users\\wineuser\\sm18.exe C:\\Users\\wineuser\\system\\testitems.Kno", CREATE_NO_WINDOW) {
-    match spawn_process("C:\\Users\\wineuser\\sm18.exe", CREATE_NO_WINDOW) {
+    //match spawn_process("C:\\Users\\wineuser\\sm18.exe", CREATE_NO_WINDOW) {
+    match spawn_process("C:\\Users\\wineuser\\sm18.exe C:\\Users\\wineuser\\system\\testitems2.Kno", CREATE_NO_WINDOW) {
         Ok(handle) => {
             println!("Injecting now...");
             match inject(handle, Path::new("C:\\Users\\wineuser\\hook.dll")) {

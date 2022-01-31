@@ -940,3 +940,15 @@ impl Default for Items {
         }
     }
 }
+
+#[derive(Default, Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct Msg {
+    pub hwnd: u32,
+    pub msg: u32,
+    pub wParam: u32,
+    pub lParam: u32,
+    pub time: u32,
+    pub pt: u32,
+}

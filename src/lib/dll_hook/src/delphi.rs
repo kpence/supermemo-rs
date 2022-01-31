@@ -141,7 +141,15 @@ impl From<&UnicodeString> for String {
     }
 }
 
-pub trait Trampoline0 {
+pub trait TrampolineBase {
+    type Args;
+    type Output;
+}
+
+pub trait Trampoline0: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func() -> i32;
 
     #[naked]
@@ -160,7 +168,10 @@ pub trait Trampoline0 {
     }
 }
 
-pub trait Trampoline0F64 {
+pub trait Trampoline0F64: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func() -> f64;
 
     #[naked]
@@ -183,7 +194,10 @@ pub trait Trampoline0F64 {
     }
 }
 
-pub trait Trampoline1 {
+pub trait Trampoline1: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32) -> i32;
 
     #[naked]
@@ -203,7 +217,10 @@ pub trait Trampoline1 {
     }
 }
 
-pub trait Trampoline1F64 {
+pub trait Trampoline1F64: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32) -> f64;
 
     #[naked]
@@ -227,7 +244,10 @@ pub trait Trampoline1F64 {
     }
 }
 
-pub trait Trampoline2 {
+pub trait Trampoline2: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> i32;
 
     #[naked]
@@ -248,7 +268,10 @@ pub trait Trampoline2 {
     }
 }
 
-pub trait Trampoline2F64 {
+pub trait Trampoline2F64: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32) -> f64;
 
     #[naked]
@@ -272,7 +295,10 @@ pub trait Trampoline2F64 {
     }
 }
 
-pub trait Trampoline3 {
+pub trait Trampoline3: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> i32;
 
     #[naked]
@@ -294,7 +320,10 @@ pub trait Trampoline3 {
     }
 }
 
-pub trait Trampoline3F64 {
+pub trait Trampoline3F64: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32) -> f64;
 
     #[naked]
@@ -320,7 +349,10 @@ pub trait Trampoline3F64 {
     }
 }
 
-pub trait Trampoline4 {
+pub trait Trampoline4: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> i32;
 
     #[naked]
@@ -343,7 +375,10 @@ pub trait Trampoline4 {
     }
 }
 
-pub trait Trampoline4F64 {
+pub trait Trampoline4F64: TrampolineBase {
+    type Args;
+    type Output;
+
     unsafe extern "C" fn real_func(arg1: i32, arg2: i32, arg3: i32, arg4: i32) -> f64;
 
     #[naked]
@@ -713,6 +748,8 @@ macro_rules! foreign_fn {
 
 #[macro_export]
 macro_rules! hijack {
+    (@output_type) => { i32 };
+    (@output_type $RET_TY:ty) => { $RET_TY };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
@@ -728,7 +765,15 @@ macro_rules! hijack {
             detour: RawDetour,
         }
 
+        impl TrampolineBase for $HOOK_STRUCT_NAME {
+            type Args = ($($ARG_TY),*);
+            type Output = hijack!(@output_type $($RET_TY)?);
+        }
+
         impl $TRAMPOLINE_TYPE for $HOOK_STRUCT_NAME {
+            type Args = <$HOOK_STRUCT_NAME as TrampolineBase>::Args;
+            type Output = <$HOOK_STRUCT_NAME as TrampolineBase>::Output;
+
             unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) $(-> $RET_TY)? {$($BLOCK)*}
         }
 
