@@ -42,7 +42,12 @@ use std::{
     path::Path,
     fs::File,
     sync::Mutex,
+    any::Any,
     //ffi::OsStr,
+};
+
+use once_cell::{
+    sync::Lazy,
 };
 
 // define dllmain to handle the init action
@@ -66,6 +71,11 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
   return TRUE;
 }
 
+static EXECUTION_METHOD: Lazy<Mutex<Option<Box<&'static (dyn HookBase + 'static + Send + Sync)>,>>> = Lazy::new(|| Mutex::new(None));
+
+//static execution_parameters: Lazy<HookStruct::Args> = Lazy::;
+//static execution_result: Lazy<HookStruct::Output>;
+
 fn init() {
     println!("Initializing..");
 
@@ -80,68 +90,31 @@ fn init() {
     // Implement a delphi trampoline method for detouring from wndproc, and invent some wndproc to use with which you'll write it to this OnMessage thing
 
     //hijack!("E8 ? ? ? ? 80 7D FB 24", EL_WDW_GO_TO_ELEMENT, ElWdwGoToElement)
-    struct ExecutionContext<HookStruct> where HookStruct: TrampolineBase+'static {
-        execution_method: &'static HookStruct,
-        execution_parameters: HookStruct::Args,
-        execution_result: HookStruct::Output,
-        //TODO execution_out_parameter
-    }
-
     hijack!(0x0000000, EL_WDW_GO_TO_ELEMENT, ElWdwGoToElement, (arg1: i32, arg2: i32) -> i32);
 
-    enum ExecutionMethod {
-        ElWdwGoToElement(ExecutionContext<ElWdwGoToElement>),
-    }
+    *EXECUTION_METHOD.lock().unwrap() = Some(Box::new(&*EL_WDW_GO_TO_ELEMENT));
 
-    struct WndProc {
-        execution_context: ExecutionMethod
-    }
-
-    lazy_static!(
-        static ref WND_PROC: Mutex<WndProc> = Mutex::new(WndProc {
-            execution_context: ExecutionMethod::ElWdwGoToElement(
-                ExecutionContext::<ElWdwGoToElement> {
-                    execution_method: &EL_WDW_GO_TO_ELEMENT,
-                    execution_parameters: (1,2),
-                    execution_result: 0,
-                }
-            )
-        });
-    );
-
-    WND_PROC.lock().unwrap().execution_context = ExecutionMethod::ElWdwGoToElement(
-        ExecutionContext::<ElWdwGoToElement> {
-            execution_method: &EL_WDW_GO_TO_ELEMENT,
-            execution_parameters: (1,2),
-            execution_result: 0,
-        }
-    );
-
-    impl TrampolineBase for WndProc {
-        type Args = (i32, i32, i32);
-        type Output = i32;
-    }
+    struct WndProc { }
 
     impl Trampoline3 for WndProc {
-        type Args = <WndProc as TrampolineBase>::Args;
-        type Output = <WndProc as TrampolineBase>::Output;
-
         unsafe extern "C" fn real_func(sm_main: i32, msg_addr: i32, handled: i32) -> i32 {
-            // TODO verify msg_ptr isn't null
+            let ExecuteOnMainThread = 0; // TODO nocheckin
             if msg_addr == 0 {
                 return 0;
-            }
-            // TODO do this right
-            let ExecuteOnMainThread = 0;
-            if let Msg { msg: WM_QUIT, wParam: ExecuteOnMainThread, .. } = (msg_addr as *const Msg).read() {
-                //let res = int.MinValue;
+            } else if let Msg {
+                msg: WM_QUIT,
+                wParam: ExecuteOnMainThread,
+                ..
+            } = (msg_addr as *const Msg).read() {
 
-                (handled as *mut bool).write(true);
-            }
+                if let Some(execution_method) = &*EXECUTION_METHOD.lock().unwrap() {
+                    let execution_context = execution_method.get_execution_context();
+                    //let result = (*execution_method).call_trampoline_tuple(execution_parameters);
+                    //*execution_result = result;
+                    //(handled as *mut bool).write(true);
+                }
 
-            // TODO Use singleton for the execution context, the bellow line won't work
-            //println!("parameters={}, result={}", Self::execution_context::execution_parameters, Self::execution_context::execution_result);
-            // Instead of singleton, I'm just gonna use lazy static!
+            }
 
             // TODO Here I can write the detour where I test
             // TODO how should I get the execution context
@@ -150,7 +123,7 @@ fn init() {
         }
     }
 
-    let wnd_proc_fn_ptr: usize = WndProc::trampoline as usize;
+    //let wnd_proc_fn_ptr: usize = WndProc::trampoline as usize;
 
     // Write the address of wndProc to OnMessage
     let application_ptr = 0x00bb11e8 as usize;
