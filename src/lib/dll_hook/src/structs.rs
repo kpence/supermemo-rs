@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::{
-    ptr,
     io::{self, Read},
+    ptr,
 };
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -208,8 +208,22 @@ impl ItemInfo {
             Interval: rdr.read_u16::<LittleEndian>()?,
             LastRepetition: rdr.read_u16::<LittleEndian>()?,
             LastRepDate: rdr.read_f64::<LittleEndian>()?,
-            AF: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
-            UF: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            AF: [
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+            ],
+            UF: [
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+            ],
             RepHistPtr: rdr.read_u32::<LittleEndian>()? as *mut RepHistRecord,
             ReferenceNo: rdr.read_u32::<LittleEndian>()?,
             FI: rdr.read_u8()?,
@@ -224,8 +238,22 @@ impl ItemInfo {
             TasklistNo: rdr.read_u32::<LittleEndian>()?,
             TaskNo: rdr.read_u32::<LittleEndian>()?,
             RootArticle: rdr.read_u32::<LittleEndian>()?,
-            _ElementDifficulty: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
-            Ordinal: [rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?, rdr.read_u8()?],
+            _ElementDifficulty: [
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+            ],
+            Ordinal: [
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+                rdr.read_u8()?,
+            ],
             _FirstGrade: rdr.read_u8()?,
             TheElementNo: rdr.read_u32::<LittleEndian>()?,
             FirstRepetitionDay: rdr.read_u32::<LittleEndian>()?,
@@ -253,17 +281,39 @@ pub struct OptimizationRecord {
 impl OptimizationRecord {
     pub fn from_reader(mut rdr: impl Read) -> io::Result<Self> {
         let mut optimization_record = OptimizationRecord::default();
-        for i in 0..400 { optimization_record.OFM[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..400 { optimization_record.RFM[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..400 { optimization_record.Cases[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..19 { optimization_record.DFM[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..19 { optimization_record.DFMCases[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..8000 { optimization_record.Ret[i] = rdr.read_u8()?; }
-        for i in 0..8000 { optimization_record.RetCases[i] = rdr.read_u8()?; }
-        for i in 0..60 { optimization_record.FirstGradeGraph[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..20 { optimization_record.FirstGradeCases[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..90 { optimization_record.FIGradeGraph[i] = rdr.read_u16::<LittleEndian>()?; }
-        for i in 0..30 { optimization_record.FIGradeCases[i] = rdr.read_u16::<LittleEndian>()?; }
+        for i in 0..400 {
+            optimization_record.OFM[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..400 {
+            optimization_record.RFM[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..400 {
+            optimization_record.Cases[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..19 {
+            optimization_record.DFM[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..19 {
+            optimization_record.DFMCases[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..8000 {
+            optimization_record.Ret[i] = rdr.read_u8()?;
+        }
+        for i in 0..8000 {
+            optimization_record.RetCases[i] = rdr.read_u8()?;
+        }
+        for i in 0..60 {
+            optimization_record.FirstGradeGraph[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..20 {
+            optimization_record.FirstGradeCases[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..90 {
+            optimization_record.FIGradeGraph[i] = rdr.read_u16::<LittleEndian>()?;
+        }
+        for i in 0..30 {
+            optimization_record.FIGradeCases[i] = rdr.read_u16::<LittleEndian>()?;
+        }
         Ok(optimization_record)
     }
 }
@@ -406,7 +456,10 @@ impl Default for DataRecord {
             TopicTotalRepetitionTime: 0,
             TopicTotalRepetitionsCounter: 0,
             TopicATCount: 0,
-            FI_vs_Priority: [FIVsPriorityRec{Count: 0, FI_sum: [0; 6]}; 20],
+            FI_vs_Priority: [FIVsPriorityRec {
+                Count: 0,
+                FI_sum: [0; 6],
+            }; 20],
         }
     }
 }
@@ -879,7 +932,7 @@ pub struct Queue {
 #[repr(C)]
 pub struct SMMain {
     pub _unknown: [u8; 0xcf2],
-    pub _unknown_ptr: *mut u32
+    pub _unknown_ptr: *mut u32,
 }
 
 impl Default for SMMain {

@@ -17,8 +17,7 @@ fn pretty_print_code(code: &[u8]) {
     const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
     const EXAMPLE_CODE_RIP: u64 = 0x0000_7FFA_C46A_CDA4;
 
-    let mut decoder =
-        Decoder::with_ip(32, code, 0x0000_7FFA_C46A_CDA4, DecoderOptions::NONE);
+    let mut decoder = Decoder::with_ip(32, code, 0x0000_7FFA_C46A_CDA4, DecoderOptions::NONE);
     let mut formatter = NasmFormatter::new();
 
     // Change some options, there are many more
