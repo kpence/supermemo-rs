@@ -106,12 +106,8 @@ fn init() {
                 wParam: ExecuteOnMainThread,
                 ..
             } = (msg_addr as *const Msg).read() {
-
                 if let Some(execution_method) = &*EXECUTION_METHOD.lock().unwrap() {
-                    let execution_context = execution_method.get_execution_context();
-                    //let result = (*execution_method).call_trampoline_tuple(execution_parameters);
-                    //*execution_result = result;
-                    //(handled as *mut bool).write(true);
+                    //match
                 }
 
             }

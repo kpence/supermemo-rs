@@ -142,8 +142,7 @@ impl From<&UnicodeString> for String {
 }
 
 pub trait HookBase {
-    fn set_execution_context(&mut self, execution_context: RegisterCall);
-    fn get_execution_context(&self) -> RegisterCall;
+    //TODO fn get_execution_context(&self) -> RegisterCall;
 }
 
 pub trait Trampoline0 {
@@ -375,355 +374,475 @@ pub trait Trampoline4F64 {
     }
 }
 
-#[derive(Copy, Clone)]
 pub struct RegisterExecutionContext<Args, Output> {
     parameters: Args,
     result: Output,
+    fn_addr: usize,
+    detour: RawDetour,
 }
 
-#[derive(Copy, Clone)]
-pub enum RegisterCall {
-    RegisterCall0(Option<RegisterExecutionContext<(), i32>>),
-    RegisterCall0F64(Option<RegisterExecutionContext<(), f64>>),
-    RegisterCall1(Option<RegisterExecutionContext<(i32,), i32>>),
-    RegisterCall1F64(Option<RegisterExecutionContext<(i32,), f64>>),
-    RegisterCall2(Option<RegisterExecutionContext<(i32, i32), i32>>),
-    RegisterCall2F64(Option<RegisterExecutionContext<(i32, i32), f64>>),
-    RegisterCall3(Option<RegisterExecutionContext<(i32, i32, i32), i32>>),
-    RegisterCall3F64(Option<RegisterExecutionContext<(i32, i32, i32), f64>>),
-    RegisterCall4(Option<RegisterExecutionContext<(i32, i32, i32, i32), i32>>),
-    RegisterCall4F64(Option<RegisterExecutionContext<(i32, i32, i32, i32), f64>>),
+pub enum RegisterCallEnum {
+    RegisterCall0(RegisterExecutionContext<(), i32>),
+    RegisterCall0F64(RegisterExecutionContext<(), f64>),
+    RegisterCall1(RegisterExecutionContext<i32, i32>),
+    RegisterCall1F64(RegisterExecutionContext<i32, f64>),
+    RegisterCall2(RegisterExecutionContext<(i32, i32), i32>),
+    RegisterCall2F64(RegisterExecutionContext<(i32, i32), f64>),
+    RegisterCall3(RegisterExecutionContext<(i32, i32, i32), i32>),
+    RegisterCall3F64(RegisterExecutionContext<(i32, i32, i32), f64>),
+    RegisterCall4(RegisterExecutionContext<(i32, i32, i32, i32), i32>),
+    RegisterCall4F64(RegisterExecutionContext<(i32, i32, i32, i32), f64>),
 }
 
-#[allow(dead_code)]
-pub fn register_call0(ptr: usize, (): ()) -> i32 {
-    let ret_val: i32;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            lateout("eax") ret_val,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") _,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+pub enum RegisterCallResult {
+    i32(i32),
+    f64(f64),
+}
+
+impl RegisterCallEnum {
+    pub fn call_detour(&self) -> std::result::Result<(), &'static str> {
+        match self {
+            RegisterCallEnum::RegisterCall0(RegisterExecutionContext::<(), i32> {
+                fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call0(*fn_addr, ());
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall0F64(RegisterExecutionContext::<(), f64> {
+                fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call0_f64(*fn_addr, ());
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall1(RegisterExecutionContext::<i32, i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call1(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall1F64(RegisterExecutionContext::<i32, f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call1_f64(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall2(RegisterExecutionContext::<(i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call1(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall2F64(RegisterExecutionContext::<(i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call2_f64(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall3(RegisterExecutionContext::<(i32, i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call3(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall3F64(RegisterExecutionContext::<(i32, i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call3_f64(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall4(RegisterExecutionContext::<(i32, i32, i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call4(*fn_addr, *parameters);
+                Ok(())
+            },
+            RegisterCallEnum::RegisterCall4F64(RegisterExecutionContext::<(i32, i32, i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => {
+                *result = register_call4_f64(*fn_addr, *parameters);
+                Ok(())
+            },
+            _ => { Err("Error, did not match on RegisterCall variant in call") },
+        }
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call0_f64(ptr: usize, (): ()) -> f64 {
-    let ret_val: f64;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            lateout("eax") _,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") ret_val,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
-    }
-    ret_val
+/*
+            RegisterCall0(RegisterExecutionContext<(), i32> {
+                fn_addr, ref mut result, ..
+            }) => { result = register_call0(fn_addr, ()); },
+            RegisterCall0F64(RegisterExecutionContext<(), f64> {
+                fn_addr, ref mut result, ..
+            }) => { result = register_call0_f64(fn_addr, ()); },
+            RegisterCall1(RegisterExecutionContext<(i32,), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call1(fn_addr, parameters); },
+            RegisterCall1F64(RegisterExecutionContext<(i32,), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call1_f64(fn_addr, parameters); },
+            RegisterCall2(RegisterExecutionContext<(i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call1(fn_addr, parameters); },
+            RegisterCall2F64(RegisterExecutionContext<(i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call2_f64(fn_addr, parameters); },
+            RegisterCall3(RegisterExecutionContext<(i32, i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call3(fn_addr, parameters); },
+            RegisterCall3F64(RegisterExecutionContext<(i32, i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call3_f64(fn_addr, parameters); },
+            RegisterCall4(RegisterExecutionContext<(i32, i32, i32, i32), i32> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call4(fn_addr, parameters); },
+            RegisterCall4F64(RegisterExecutionContext<(i32, i32, i32, i32), f64> {
+                parameters, fn_addr, ref mut result, ..
+            }) => { result = register_call4_f64(fn_addr, parameters); },
+*/
+
+
+pub trait RegisterCall<Output> {
+    pub fn register_call(fn_ptr: usize, args: Self) -> Output;
 }
 
-#[allow(dead_code)]
-pub fn register_call1(ptr: usize, arg1: i32) -> i32 {
-    let ret_val: i32;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            lateout("eax") ret_val,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") _,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<i32> for () {
+    pub fn register_call(fn_ptr: usize, _: Self) -> i32 {
+        let ret_val: i32;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                lateout("eax") ret_val,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") _,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call1_f64(ptr: usize, arg1: i32) -> f64 {
-    let ret_val: f64;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            lateout("eax") _,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") ret_val,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<f64> for () {
+    pub fn register_call(fn_ptr: usize, _: Self) -> f64 {
+        let ret_val: f64;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                lateout("eax") _,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") ret_val,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call2(ptr: usize, (arg1, arg2): (i32, i32)) -> i32 {
-    let ret_val: i32;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            lateout("eax") ret_val,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") _,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<i32> for i32 {
+    pub fn register_call(fn_ptr: usize, arg1: Self) -> i32 {
+        let ret_val: i32;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                lateout("eax") ret_val,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") _,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call2_f64(ptr: usize, (arg1, arg2): (i32, i32)) -> f64 {
-    let ret_val: f64;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            lateout("eax") _,
-            out("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") ret_val,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<f64> for i32 {
+    pub fn register_call(fn_ptr: usize, arg1: Self) -> f64 {
+        let ret_val: f64;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                lateout("eax") _,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") ret_val,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call3(ptr: usize, (arg1, arg2, arg3): (i32, i32, i32)) -> i32 {
-    let ret_val: i32;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            in("ecx") arg3,
-            lateout("eax") ret_val,
-            lateout("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") _,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<i32> for (i32, i32) {
+    pub fn register_call(fn_ptr: usize, arg1: Self) -> i32 {
+        let ret_val: i32;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                lateout("eax") ret_val,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") _,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call3_f64(ptr: usize, (arg1, arg2, arg3): (i32, i32, i32)) -> f64 {
-    let ret_val: f64;
-    unsafe {
-        core::arch::asm!(
-            "finit; call {f}",
-            f = in(reg) ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            in("ecx") arg3,
-            lateout("eax") _,
-            lateout("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") ret_val,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<f64> for (i32, i32) {
+    pub fn register_call(fn_ptr: usize, (arg1, arg2): Self) -> f64 {
+        let ret_val: f64;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                lateout("eax") _,
+                out("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") ret_val,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-#[allow(dead_code)]
-pub fn register_call4(ptr: usize, (arg1, arg2, arg3, arg4): (i32, i32, i32, i32)) -> i32 {
-    let ret_val: i32;
-    unsafe {
-        core::arch::asm!(
-            "finit; push edi; call ebx",
-            in("edi") arg4,
-            in("ebx") ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            in("ecx") arg3,
-            lateout("eax") ret_val,
-            lateout("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") _,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<i32> for (i32, i32, i32) {
+    pub fn register_call(fn_ptr: usize, (arg1, arg2, arg3): Self) -> i32 {
+        let ret_val: i32;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                in("ecx") arg3,
+                lateout("eax") ret_val,
+                lateout("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") _,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
 }
 
-// TODO We should use the ptr to the function instead of a usize in order to prevent using the wrong register call function (e.g. f64 instead of i32 output
-#[allow(dead_code)]
-pub fn register_call4_f64(ptr: usize, (arg1, arg2, arg3, arg4): (i32, i32, i32, i32)) -> f64 {
-    let ret_val: f64;
-    unsafe {
-        core::arch::asm!(
-            "finit; push edi; call ebx",
-            in("edi") arg4,
-            in("ebx") ptr,
-            in("eax") arg1,
-            in("edx") arg2,
-            in("ecx") arg3,
-            lateout("eax") _,
-            lateout("ecx") _,
-            lateout("edx") _,
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-            out("xmm0") ret_val,
-            out("xmm1") _,
-            out("xmm2") _,
-            out("xmm3") _,
-            out("xmm4") _,
-            out("xmm5") _,
-            out("xmm6") _,
-            out("xmm7") _
-        );
+impl RegisterCall<f64> for (i32, i32, i32) {
+    pub fn register_call(fn_ptr: usize, (arg1, arg2, arg3): Self) -> f64 {
+        let ret_val: f64;
+        unsafe {
+            core::arch::asm!(
+                "finit; call {f}",
+                f = in(reg) fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                in("ecx") arg3,
+                lateout("eax") _,
+                lateout("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") ret_val,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
     }
-    ret_val
+}
+
+impl RegisterCall<i32> for (i32, i32, i32, i32) {
+    pub fn register_call(fn_ptr: usize, (arg1, arg2, arg3, arg4): Self) -> i32 {
+        let ret_val: i32;
+        unsafe {
+            core::arch::asm!(
+                "finit; push edi; call ebx",
+                in("edi") arg4,
+                in("ebx") fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                in("ecx") arg3,
+                lateout("eax") ret_val,
+                lateout("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") _,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
+    }
+}
+
+impl RegisterCall<f64> for (i32, i32, i32, i32) {
+    pub fn register_call(fn_ptr: usize, (arg1, arg2, arg3, arg4): Self) -> f64 {
+        let ret_val: f64;
+        unsafe {
+            core::arch::asm!(
+                "finit; push edi; call ebx",
+                in("edi") arg4,
+                in("ebx") fn_ptr,
+                in("eax") arg1,
+                in("edx") arg2,
+                in("ecx") arg3,
+                lateout("eax") _,
+                lateout("ecx") _,
+                lateout("edx") _,
+                out("st(0)") _,
+                out("st(1)") _,
+                out("st(2)") _,
+                out("st(3)") _,
+                out("st(4)") _,
+                out("st(5)") _,
+                out("st(6)") _,
+                out("st(7)") _,
+                out("xmm0") ret_val,
+                out("xmm1") _,
+                out("xmm2") _,
+                out("xmm3") _,
+                out("xmm4") _,
+                out("xmm5") _,
+                out("xmm6") _,
+                out("xmm7") _
+            );
+        }
+        ret_val
+    }
 }
 
 #[macro_export]
@@ -740,73 +859,71 @@ macro_rules! foreign_fn {
 macro_rules! hijack {
     (@output_type) => { i32 };
     (@output_type $RET_TY:ty) => { $RET_TY };
-    (@call RegisterCall0, $($REST:tt)*) => { register_call0($($REST)*) };
-    (@call RegisterCall1, $($REST:tt)*) => { register_call1($($REST)*) };
-    (@call RegisterCall2, $($REST:tt)*) => { register_call2($($REST)*) };
-    (@call RegisterCall3, $($REST:tt)*) => { register_call3($($REST)*) };
-    (@call RegisterCall4, $($REST:tt)*) => { register_call4($($REST)*) };
-    (@call RegisterCall0F64, $($REST:tt)*) => { register_call0_f64($($REST)*) };
-    (@call RegisterCall1F64, $($REST:tt)*) => { register_call1_f64($($REST)*) };
-    (@call RegisterCall2F64, $($REST:tt)*) => { register_call2_f64($($REST)*) };
-    (@call RegisterCall3F64, $($REST:tt)*) => { register_call3_f64($($REST)*) };
-    (@call RegisterCall4F64, $($REST:tt)*) => { register_call4_f64($($REST)*) };
+    (@call RegisterCall0,    $($REST:tt)*) => { <()                   as RegisterCall<i32>>::register_call($($REST)*) };
+    (@call RegisterCall1,    $($REST:tt)*) => { < i32                 as RegisterCall<i32>>::register_call($($REST)*) };
+    (@call RegisterCall2,    $($REST:tt)*) => { <(i32, i32)           as RegisterCall<i32>>::register_call($($REST)*) };
+    (@call RegisterCall3,    $($REST:tt)*) => { <(i32, i32, i32)      as RegisterCall<i32>>::register_call($($REST)*) };
+    (@call RegisterCall4,    $($REST:tt)*) => { <(i32, i32, i32, i32) as RegisterCall<i32>>::register_call($($REST)*) };
+    (@call RegisterCall0F64, $($REST:tt)*) => { <()                   as RegisterCall<f64>>::register_call($($REST)*) };
+    (@call RegisterCall1F64, $($REST:tt)*) => { < i32                 as RegisterCall<f64>>::register_call($($REST)*) };
+    (@call RegisterCall2F64, $($REST:tt)*) => { <(i32, i32)           as RegisterCall<f64>>::register_call($($REST)*) };
+    (@call RegisterCall3F64, $($REST:tt)*) => { <(i32, i32, i32)      as RegisterCall<f64>>::register_call($($REST)*) };
+    (@call RegisterCall4F64, $($REST:tt)*) => { <(i32, i32, i32, i32) as RegisterCall<f64>>::register_call($($REST)*) };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
         $TRAMPOLINE_TYPE: ident,
-        RegisterCall::$FN_CALLER: ident,
-        ($($ARG:ident:$ARG_TY:ty),*) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        RegisterCallEnum::$FN_CALLER: ident,
+        ($($ARG:ident:$ARG_TY:ty),*) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        struct $HOOK_STRUCT_NAME {
-            #[allow(dead_code)]
-            fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?,
-            #[allow(dead_code)]
-            execution_context: RegisterCall,
-            #[allow(dead_code)]
-            detour: RawDetour,
-        }
+        struct $HOOK_STRUCT_NAME(RegisterCallEnum);
 
         impl HookBase for $HOOK_STRUCT_NAME {
-            fn set_execution_context(&mut self, execution_context: RegisterCall) {
-                self.execution_context = execution_context;
-            }
-            fn get_execution_context(&self) -> RegisterCall {
-                self.execution_context
-            }
+            //fn get_execution_context(&self) -> RegisterCall {
+            //    let Self(register_call) = *self;
+            //    register_call
+            //}
         }
 
         impl $TRAMPOLINE_TYPE for $HOOK_STRUCT_NAME {
-            unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) $(-> $RET_TY)? {$($BLOCK)*}
+            unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) -> $RET_TY {$($BLOCK)*}
         }
 
         impl $HOOK_STRUCT_NAME {
-            fn new(fn_ptr: fn($($ARG_TY),*) $(-> $RET_TY)?) -> Self {
-                Self {
-                    fn_ptr: fn_ptr,
-                    execution_context: RegisterCall::$FN_CALLER(None),
-                    detour: unsafe {
-                        RawDetour::new(fn_ptr as *const (), Self::trampoline as *const ()).unwrap()
-                    },
-                }
+            fn new(fn_addr: usize) -> Self {
+                Self(
+                    RegisterCallEnum::$FN_CALLER(
+                        RegisterExecutionContext::<($($ARG_TY),*), $RET_TY> {
+                            parameters: ($($ARG),*),
+                            result: <$RET_TY>::default(),
+                            fn_addr: fn_addr,
+                            detour: unsafe {
+                                RawDetour::new(fn_addr as *const (), Self::trampoline as *const ()).unwrap()
+                            },
+                        }
+                    )
+                )
             }
 
             #[allow(dead_code)]
-            fn call_detour(&self, $($ARG:$ARG_TY),*) $(-> $RET_TY)? {
+            fn call_detour(&self, $($ARG:$ARG_TY),*) -> $RET_TY {
                 hijack!(@call $FN_CALLER, self.fn_ptr as usize, ($($ARG),*))
             }
 
             #[allow(dead_code)]
-            fn call_trampoline(&self, $($ARG:$ARG_TY),*) $(-> $RET_TY)? {
+            fn call_trampoline(&self, $($ARG:$ARG_TY),*) -> $RET_TY {
                 hijack!(@call $FN_CALLER, self.detour.trampoline() as *const _ as usize, ($($ARG),*))
             }
         }
 
         lazy_static!(
-            static ref $HOOK_STATIC_INSTANCE_NAME: $HOOK_STRUCT_NAME = unsafe {
-                $HOOK_STRUCT_NAME::new(std::mem::transmute::<usize, fn($($ARG_TY),*) $(-> $RET_TY)?>($ADDR))
-            };
+            static ref $HOOK_STATIC_INSTANCE_NAME: $HOOK_STRUCT_NAME = $HOOK_STRUCT_NAME::new($ADDR);
         );
+    //unsafe {
+    //$HOOK_STRUCT_NAME::new(std::mem::transmute::<usize, fn($($ARG_TY),*) -> $RET_TY>($ADDR))
+    // TODO I don't even need to use this transmute because i'm using RawDetour
+    //};
         #[allow(unused_unsafe)]
         unsafe { $HOOK_STATIC_INSTANCE_NAME.detour.enable() }.unwrap();
     };
@@ -816,17 +933,17 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         () -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, RegisterCall::RegisterCall0F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, RegisterCallEnum::RegisterCall0F64,
                 () -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
-        () $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        () -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, RegisterCall::RegisterCall0,
-                () $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, RegisterCallEnum::RegisterCall0,
+                () -> $RET_TY {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -834,17 +951,17 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, RegisterCall::RegisterCall1F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, RegisterCallEnum::RegisterCall1F64,
                 ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
-        ($ARG1:ident:$ARG1_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        ($ARG1:ident:$ARG1_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, RegisterCall::RegisterCall1,
-                ($ARG1:$ARG1_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, RegisterCallEnum::RegisterCall1,
+                ($ARG1:$ARG1_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -852,17 +969,17 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64, RegisterCall::RegisterCall2F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64, RegisterCallEnum::RegisterCall2F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
-        ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2, RegisterCall::RegisterCall2,
-                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2, RegisterCallEnum::RegisterCall2,
+                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -870,17 +987,17 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64, RegisterCall::RegisterCall3F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64, RegisterCallEnum::RegisterCall3F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
-        ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3, RegisterCall::RegisterCall3,
-                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3, RegisterCallEnum::RegisterCall3,
+                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -888,17 +1005,17 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64, RegisterCall::RegisterCall4F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64, RegisterCallEnum::RegisterCall4F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> f64 {$($BLOCK)*})
     };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
-        ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) $(-> $RET_TY:ty)? {$($BLOCK:tt)*}
+        ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4, RegisterCall::RegisterCall4,
-                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) $(-> $RET_TY)? {$($BLOCK)*})
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4, RegisterCallEnum::RegisterCall4,
+                ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
         $ADDR:expr,
@@ -935,7 +1052,7 @@ macro_rules! hijack {
         ($($ARG:ident:$ARG_TY:ty),*)
     ) => {
         hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME,
-                ($($ARG:$ARG_TY),*) {
+                ($($ARG:$ARG_TY),*) -> i32 {
                     println!(" >> Detour for {}: {:?}", stringify!($HOOK_STRUCT_NAME), ($($ARG),*));
                     $HOOK_STATIC_INSTANCE_NAME.call_trampoline($($ARG),*);
                     println!("<<  Reached end of detour for {}.", stringify!($HOOK_STRUCT_NAME));
