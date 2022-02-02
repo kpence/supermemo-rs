@@ -10,7 +10,7 @@ crate-type = ["dylib"] # could be `staticlib` as well
 [dependencies]
 gcc = "0.3"
 libc = "0.2"
-detour = { version = "=0.8.0" , features = ["nightly"] }
+detour = { version = "0.8.1" , features = ["nightly"] }
 user32-sys = "0.1"
 kernel32-sys = "0.2.2"	
 lazy_static = "1.4.0"

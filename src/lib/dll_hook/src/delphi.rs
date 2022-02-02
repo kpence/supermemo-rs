@@ -363,9 +363,9 @@ pub struct RegisterExecutionContext<Args, Output> {
 
 impl<Args, Output> RegisterExecutionContext<Args, Output>
 where
-    Args: RegisterCall<Output>,
+    Args: RegisterCall<Output> + Copy,
 {
-    pub fn call_detour(&self) {
+    pub fn call_detour(&mut self) {
         self.result = <Args as RegisterCall<Output>>::register_call(self.fn_addr, self.parameters);
     }
 }
@@ -726,8 +726,6 @@ macro_rules! foreign_fn {
 
 #[macro_export]
 macro_rules! hijack {
-    (@output_type) => { i32 };
-    (@output_type $RET_TY:ty) => { $RET_TY };
     (
         $ADDR:expr,
         $HOOK_STATIC_INSTANCE_NAME:ident,
@@ -747,7 +745,7 @@ macro_rules! hijack {
             fn new(fn_addr: usize) -> Self {
                 Self(
                     RegisterExecutionContext::<($($ARG_TY),*), $RET_TY> {
-                        parameters: ($($ARG),*),
+                        parameters: <($($ARG_TY),*)>::default(),
                         result: <$RET_TY>::default(),
                         fn_addr: fn_addr,
                         detour: unsafe {

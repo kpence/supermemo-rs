@@ -28,9 +28,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "detour"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c901a56aa37ddfb686a69e671af52c22b978b7569065a2e0fde159ed83b2af4"
+checksum = "f3c83fabcc3bc336e19320c13576ea708a15deec201d6b879b7ad1b92734d7b9"
 dependencies = [
  "cfg-if",
  "generic-array",
