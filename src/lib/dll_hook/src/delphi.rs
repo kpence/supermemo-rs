@@ -132,9 +132,6 @@ impl From<&UnicodeString> for String {
     }
 }
 
-pub trait HookBase { // TODO see comment below where this is getting implemented for hooks
-}
-
 pub trait Trampoline0 {
     unsafe extern "C" fn real_func() -> i32;
 
@@ -354,19 +351,109 @@ pub trait Trampoline4F64 {
     }
 }
 
-pub struct RegisterExecutionContext<Args, Output> {
-    pub parameters: Args,
-    pub result: Output,
-    pub fn_addr: usize,
-    pub detour: RawDetour,
+pub enum HookParameters {
+    Args0,
+    Args1(i32),
+    Args2(i32, i32),
+    Args3(i32, i32, i32),
+    Args4(i32, i32, i32, i32),
 }
 
-impl<Args, Output> RegisterExecutionContext<Args, Output>
-where
-    Args: RegisterCall<Output> + Copy,
-{
-    pub fn call_detour(&mut self) {
-        self.result = <Args as RegisterCall<Output>>::register_call(self.fn_addr, self.parameters);
+pub enum HookResult {
+    i32(i32),
+    f64(f64),
+}
+
+pub enum FnSignature {
+    Sig0,
+    Sig1,
+    Sig2,
+    Sig3,
+    Sig4,
+    Sig0F64,
+    Sig1F64,
+    Sig2F64,
+    Sig3F64,
+    Sig4F64,
+}
+
+pub struct Hook {
+    pub fn_addr: usize,
+    pub detour: RawDetour,
+    pub fn_signature: FnSignature,
+}
+
+impl Hook {
+    pub fn call_detour(&self, parameters: &HookParameters) -> HookResult {
+        match *parameters {
+            HookParameters::Args0 => {
+                match self.fn_signature {
+                    FnSignature::Sig0 => {
+                        HookResult::i32(<() as RegisterCall<i32>>::register_call(self.fn_addr, ()))
+                    },
+                    FnSignature::Sig0F64 => {
+                        HookResult::f64(<() as RegisterCall<f64>>::register_call(self.fn_addr, ()))
+                    },
+                    _ => {
+                        panic!("Not matched");
+                    },
+                }
+
+            },
+            HookParameters::Args1(arg1) => {
+                match self.fn_signature {
+                    FnSignature::Sig1 => {
+                        HookResult::i32(<i32 as RegisterCall<i32>>::register_call(self.fn_addr, arg1))
+                    },
+                    FnSignature::Sig1F64 => {
+                        HookResult::f64(<i32 as RegisterCall<f64>>::register_call(self.fn_addr, arg1))
+                    },
+                    _ => {
+                        panic!("Not matched");
+                    },
+                }
+            },
+            HookParameters::Args2(arg1, arg2) => {
+                match self.fn_signature {
+                    FnSignature::Sig2 => {
+                        HookResult::i32(<(i32, i32) as RegisterCall<i32>>::register_call(self.fn_addr, (arg1, arg2)))
+                    },
+                    FnSignature::Sig2F64 => {
+                        HookResult::f64(<(i32, i32) as RegisterCall<f64>>::register_call(self.fn_addr, (arg1, arg2)))
+                    },
+                    _ => {
+                        panic!("Not matched");
+                    },
+                }
+            },
+            HookParameters::Args3(arg1, arg2, arg3) => {
+                match self.fn_signature {
+                    FnSignature::Sig3 => {
+                        HookResult::i32(<(i32, i32, i32) as RegisterCall<i32>>::register_call(self.fn_addr, (arg1, arg2, arg3)))
+                    },
+                    FnSignature::Sig3F64 => {
+                        HookResult::f64(<(i32, i32, i32) as RegisterCall<f64>>::register_call(self.fn_addr, (arg1, arg2, arg3)))
+                    },
+                    _ => {
+                        panic!("Not matched");
+                    },
+                }
+            },
+            HookParameters::Args4(arg1, arg2, arg3, arg4) => {
+                match self.fn_signature {
+                    FnSignature::Sig4 => {
+                        HookResult::i32(<(i32, i32, i32, i32) as RegisterCall<i32>>::register_call(self.fn_addr, (arg1, arg2, arg3, arg4)))
+                    },
+                    FnSignature::Sig4F64 => {
+                        HookResult::f64(<(i32, i32, i32, i32) as RegisterCall<f64>>::register_call(self.fn_addr, (arg1, arg2, arg3, arg4)))
+                    },
+                    _ => {
+                        panic!("Not matched");
+                    },
+                }
+            },
+        }
+        //*result = <Args as RegisterCall<Output>>::register_call(self.fn_addr, parameters);
     }
 }
 
@@ -731,11 +818,10 @@ macro_rules! hijack {
         $HOOK_STATIC_INSTANCE_NAME:ident,
         $HOOK_STRUCT_NAME:ident,
         $TRAMPOLINE_TYPE: ident,
+        $SIGNATURE_TYPE: ident,
         ($($ARG:ident:$ARG_TY:ty),*) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        struct $HOOK_STRUCT_NAME(RegisterExecutionContext<($($ARG_TY),*), $RET_TY>);
-
-        impl HookBase for $HOOK_STRUCT_NAME { } // TODO Don't use this any more? Find a different way
+        struct $HOOK_STRUCT_NAME(Hook);
 
         impl $TRAMPOLINE_TYPE for $HOOK_STRUCT_NAME {
             unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) -> $RET_TY {$($BLOCK)*}
@@ -744,13 +830,12 @@ macro_rules! hijack {
         impl $HOOK_STRUCT_NAME {
             fn new(fn_addr: usize) -> Self {
                 Self(
-                    RegisterExecutionContext::<($($ARG_TY),*), $RET_TY> {
-                        parameters: <($($ARG_TY),*)>::default(),
-                        result: <$RET_TY>::default(),
+                    Hook {
                         fn_addr: fn_addr,
                         detour: unsafe {
                             RawDetour::new(fn_addr as *const (), Self::trampoline as *const ()).unwrap()
                         },
+                        fn_signature: FnSignature::$SIGNATURE_TYPE,
                     }
                 )
             }
@@ -772,9 +857,7 @@ macro_rules! hijack {
             }
         }
 
-        lazy_static!(
-            static ref $HOOK_STATIC_INSTANCE_NAME: $HOOK_STRUCT_NAME = $HOOK_STRUCT_NAME::new($ADDR);
-        );
+        static $HOOK_STATIC_INSTANCE_NAME: Lazy<$HOOK_STRUCT_NAME> = Lazy::new(|| $HOOK_STRUCT_NAME::new($ADDR));
 
         #[allow(unused_unsafe)]
         unsafe { $HOOK_STATIC_INSTANCE_NAME.0.detour.enable() }.unwrap();
@@ -785,7 +868,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         () -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0F64, Sig0F64,
                 () -> f64 {$($BLOCK)*})
     };
     (
@@ -794,7 +877,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         () -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline0, Sig0,
                 () -> $RET_TY {$($BLOCK)*})
     };
     (
@@ -803,7 +886,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1F64, Sig1F64,
                 ($ARG1:$ARG1_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -812,7 +895,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline1, Sig1,
                 ($ARG1:$ARG1_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
@@ -821,7 +904,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2F64, Sig2F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -830,7 +913,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty, $ARG2:ident:$ARG2_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline2, Sig2,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
@@ -839,7 +922,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3F64, Sig3F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -848,7 +931,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline3, Sig3,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY) -> $RET_TY {$($BLOCK)*})
     };
     (
@@ -857,7 +940,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> f64 {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4F64, Sig4F64,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> f64 {$($BLOCK)*})
     };
     (
@@ -866,7 +949,7 @@ macro_rules! hijack {
         $HOOK_STRUCT_NAME:ident,
         ($ARG1:ident:$ARG1_TY:ty,$ARG2:ident:$ARG2_TY:ty,$ARG3:ident:$ARG3_TY:ty,$ARG4:ident:$ARG4_TY:ty) -> $RET_TY:ty {$($BLOCK:tt)*}
     ) => {
-        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4,
+        hijack!($ADDR, $HOOK_STATIC_INSTANCE_NAME, $HOOK_STRUCT_NAME, Trampoline4, Sig4,
                 ($ARG1:$ARG1_TY,$ARG2:$ARG2_TY,$ARG3:$ARG3_TY,$ARG4:$ARG4_TY) -> $RET_TY {$($BLOCK)*})
     };
     (

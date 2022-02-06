@@ -32,7 +32,7 @@ use std::{
     //ffi::OsStr,
     fs::File,
     path::Path,
-    sync::Mutex,
+    sync::{Mutex, RwLock, Arc},
 };
 
 use once_cell::sync::Lazy;
@@ -58,8 +58,12 @@ unsafe extern "system" fn DllMain(hinst: HINSTANCE, reason: DWORD, _reserved: LP
     return TRUE;
 }
 
-static EXECUTION_METHOD: Lazy<Mutex<Option<Box<&'static (dyn HookBase + 'static + Send + Sync)>>>> =
+static EXECUTION_METHOD: Lazy<Mutex<Option<&'static Hook>>> =
     Lazy::new(|| Mutex::new(None));
+static EXECUTION_PARAMETERS: Lazy<Mutex<HookParameters>> =
+    Lazy::new(|| Mutex::new(HookParameters::Args0));
+static EXECUTION_RESULT: Lazy<Mutex<HookResult>> =
+    Lazy::new(|| Mutex::new(HookResult::i32(0)));
 
 //static execution_parameters: Lazy<HookStruct::Args> = Lazy::;
 //static execution_result: Lazy<HookStruct::Output>;
@@ -79,9 +83,9 @@ fn init() {
 
     //hijack!("E8 ? ? ? ? 80 7D FB 24", EL_WDW_GO_TO_ELEMENT, ElWdwGoToElement)
 
-    hijack!(0x0000000, EL_WDW_GO_TO_ELEMENT, ElWdwGoToElement, (arg1: i32, arg2: i32) -> i32);
+    hijack!(0x0000000, EL_WDW_GO_TO_ELEMENT, ElWdwGoToElement, (arg1: i32, arg2: i32));
 
-    *EXECUTION_METHOD.lock().unwrap() = Some(Box::new(&*EL_WDW_GO_TO_ELEMENT));
+    *EXECUTION_METHOD.lock().unwrap() = Some(&((*EL_WDW_GO_TO_ELEMENT).0));
 
     struct WndProc {}
 
@@ -96,8 +100,8 @@ fn init() {
                 ..
             } = (msg_addr as *const Msg).read()
             {
-                if let Some(execution_method) = &*EXECUTION_METHOD.lock().unwrap() {
-                    //match
+                if let Some(execution_method) = *EXECUTION_METHOD.lock().unwrap() {
+                    *EXECUTION_RESULT.lock().unwrap() = execution_method.call_detour(&*EXECUTION_PARAMETERS.lock().unwrap());
                 }
             }
 
