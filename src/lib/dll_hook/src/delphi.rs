@@ -351,6 +351,7 @@ pub trait Trampoline4F64 {
     }
 }
 
+#[allow(dead_code)]
 pub enum HookParameters {
     Args0,
     Args1(i32),
@@ -359,11 +360,13 @@ pub enum HookParameters {
     Args4(i32, i32, i32, i32),
 }
 
+#[allow(dead_code)]
 pub enum HookResult {
     i32(i32),
     f64(f64),
 }
 
+#[allow(dead_code)]
 pub enum FnSignature {
     Sig0,
     Sig1,
