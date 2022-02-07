@@ -21,12 +21,13 @@ Lazy::new(|| Mutex::new(None));
 pub static EXECUTION_FINISH_EVENT_RECEIVER: Lazy<Mutex<Option<Receiver<()>>>> =
 Lazy::new(|| Mutex::new(None));
 
+const MESSAGE_PARAM_EXECUTE_MAIN_THREAD: u32 = 9100101;
+const MESSAGE_ID_SMA: u32 = 2345;
+
 struct WndProc { }
 
 impl Trampoline3 for WndProc {
     unsafe extern "C" fn real_func(_sm_main: i32, msg_addr: i32, handled: i32) -> i32 {
-        const MESSAGE_PARAM_EXECUTE_MAIN_THREAD: u32 = 9100101; // TODO put this somewhere properly
-        const MESSAGE_ID_SMA: u32 = 2345;
         if msg_addr == 0 {
             return 0;
         } else if let Msg {
@@ -57,7 +58,7 @@ pub trait CallNativeFn<Output> {
             },
         };
         Self::set_execution_parameters(parameters);
-        println!("\n---------------------------------------\nAfter setting execution params");
+        println!("\n---------------------------------------\nAfter setting execution params"); // TODO delete these
 
         // I need to get the handle that I need
         let smmain_ptr = 0x00ca61c0 as *mut *mut usize;
@@ -74,9 +75,7 @@ pub trait CallNativeFn<Output> {
         unsafe { on_message_ptr.write(wnd_proc_fn_addr) };
         println!("\n---------------------------------------\nTest3");
 
-        // TODO then I need to post message
-        const MESSAGE_PARAM_EXECUTE_MAIN_THREAD: u32 = 9100101; // TODO put this somewhere properly
-        const MESSAGE_ID_SMA: u32 = 2345;
+        // Then I need to post message
         let msg_id = MESSAGE_ID_SMA;
         let unknown_variable = 0;
         println!("\n---------------------------------------\nBefore PostMessageW");
@@ -91,7 +90,7 @@ pub trait CallNativeFn<Output> {
         println!("\n---------------------------------------\nAfter PostMessageW and before receiving");
 
         // wait for response
-        let response = EXECUTION_FINISH_EVENT_RECEIVER.lock().unwrap().as_ref().unwrap().recv().unwrap();
+        let _response = EXECUTION_FINISH_EVENT_RECEIVER.lock().unwrap().as_ref().unwrap().recv().unwrap();
         println!("\n---------------------------------------\nAfter receiving");
 
         // Write 0 to OnMessage
