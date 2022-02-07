@@ -5,7 +5,7 @@ extern crate libc;
 extern crate winapi;
 use delphi::*;
 use call_native_fn::{
-    CallNativeFn,
+    call_native_fn,
     EXECUTION_FINISH_EVENT_TRANSMITTER,
     EXECUTION_FINISH_EVENT_RECEIVER,
 };
@@ -61,7 +61,7 @@ fn init() {
 
     if false {
         println!("\n\n\n\n\n\n\n\n\n-------------------------------------------------------------------------Calling native function now!");
-        let result = <i32 as CallNativeFn<f64>>::call_native_fn(&((*MATH_STUFF).0), 5);
+        let result = call_native_fn::<i32>(&((*MATH_STUFF).0), 5);
         println!("\n\n\n\n\n\n\n\n\n--------------------------------------------------directly after calling native function, now gonna wait!");
         std::thread::sleep(std::time::Duration::from_secs(20));
         println!("\n\n\n\n\n\n\n\n\n--------------------------------------------------------------------------done sleeping");

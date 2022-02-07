@@ -46,88 +46,57 @@ impl Trampoline3 for WndProc {
     }
 }
 
-pub trait CallNativeFn<Output> {
-    fn call_native_fn(hook: &'static Hook, parameters: Self) -> HookResult where Self: Sized {
-        *EXECUTION_METHOD.lock().unwrap() = Some(hook);
-        *EXECUTION_RESULT.lock().unwrap() = match hook.fn_signature {
-            FnSignature::Sig0 | FnSignature::Sig1 | FnSignature::Sig2 | FnSignature::Sig3 | FnSignature::Sig4 => {
-                HookResult::i32(0)
-            },
-            FnSignature::Sig0F64 | FnSignature::Sig1F64 | FnSignature::Sig2F64 | FnSignature::Sig3F64 | FnSignature::Sig4F64 => {
-                HookResult::f64(0.0)
-            },
-        };
-        Self::set_execution_parameters(parameters);
-        println!("\n---------------------------------------\nAfter setting execution params"); // TODO delete these
+pub fn call_native_fn<Args>(hook: &'static Hook, parameters: Args) -> HookResult
+where
+    Args: Sized,
+    HookParameters: From<Args>,
+{
+    *EXECUTION_METHOD.lock().unwrap() = Some(hook);
+    *EXECUTION_RESULT.lock().unwrap() = match hook.fn_signature {
+        FnSignature::Sig0 | FnSignature::Sig1 | FnSignature::Sig2 | FnSignature::Sig3 | FnSignature::Sig4 => {
+            HookResult::i32(0)
+        },
+        FnSignature::Sig0F64 | FnSignature::Sig1F64 | FnSignature::Sig2F64 | FnSignature::Sig3F64 | FnSignature::Sig4F64 => {
+            HookResult::f64(0.0)
+        },
+    };
+    *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::from(parameters);
 
-        // I need to get the handle that I need
-        let smmain_ptr = 0x00ca61c0 as *mut *mut usize;
-        println!("address is {}", unsafe { smmain_ptr.read() as u32 });
-        let handle = unsafe { smmain_ptr.read().add(0x288).read() };
-        println!("\n---------------------------------------\nTest1");
+    // I need to get the handle that I need
+    let smmain_ptr = 0x00ca61c0 as *mut *mut usize;
+    println!("\n---------------------------------------\naddress is {}", unsafe { smmain_ptr.read() as u32 }); // TODO
+    let handle = unsafe { smmain_ptr.read().add(0x288).read() };
+    println!("\n---------------------------------------\nTest1");
 
-        let application_ptr = 0x00bb11e8 as *mut usize;
-        let on_message_ptr = unsafe { application_ptr.add(0x120) };
-        let wnd_proc_fn_addr = WndProc::trampoline as usize;
-        println!("\n---------------------------------------\nTest2");
+    let application_ptr = 0x00bb11e8 as *mut usize;
+    let on_message_ptr = unsafe { application_ptr.add(0x120) };
+    let wnd_proc_fn_addr = WndProc::trampoline as usize;
+    println!("\n---------------------------------------\nTest2");
 
-        // Write the address of wndProc to OnMessage
-        unsafe { on_message_ptr.write(wnd_proc_fn_addr) };
-        println!("\n---------------------------------------\nTest3");
+    // Write the address of wndProc to OnMessage
+    unsafe { on_message_ptr.write(wnd_proc_fn_addr) };
+    println!("\n---------------------------------------\nTest3");
 
-        // Then I need to post message
-        let msg_id = MESSAGE_ID_SMA;
-        let unknown_variable = 0;
-        println!("\n---------------------------------------\nBefore PostMessageW");
-        let _result = unsafe {
-            PostMessageW(
-                handle as *mut _,
-                MESSAGE_PARAM_EXECUTE_MAIN_THREAD,
-                &msg_id as *const _ as usize,
-                &unknown_variable as *const _ as isize,
-            )
-        };
-        println!("\n---------------------------------------\nAfter PostMessageW and before receiving");
+    // Then I need to post message
+    let msg_id = MESSAGE_ID_SMA;
+    let unknown_variable = 0;
+    println!("\n---------------------------------------\nBefore PostMessageW");
+    let _result = unsafe {
+        PostMessageW(
+            handle as *mut _,
+            MESSAGE_PARAM_EXECUTE_MAIN_THREAD,
+            &msg_id as *const _ as usize,
+            &unknown_variable as *const _ as isize,
+        )
+    };
+    println!("\n---------------------------------------\nAfter PostMessageW and before receiving");
 
-        // wait for response
-        let _response = EXECUTION_FINISH_EVENT_RECEIVER.lock().unwrap().as_ref().unwrap().recv().unwrap();
-        println!("\n---------------------------------------\nAfter receiving");
+    // wait for response
+    let _response = EXECUTION_FINISH_EVENT_RECEIVER.lock().unwrap().as_ref().unwrap().recv().unwrap();
+    println!("\n---------------------------------------\nAfter receiving");
 
-        // Write 0 to OnMessage
-        unsafe { (on_message_ptr as *mut usize).write(0) };
+    // Write 0 to OnMessage
+    unsafe { (on_message_ptr as *mut usize).write(0) };
 
-        *EXECUTION_RESULT.lock().unwrap()
-    }
-
-    fn set_execution_parameters(parameters: Self);
-}
-
-impl<Output> CallNativeFn<Output> for () {
-    fn set_execution_parameters(_: ()) {
-        *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::Args0;
-    }
-}
-
-impl<Output> CallNativeFn<Output> for i32 {
-    fn set_execution_parameters(arg1: Self) {
-        *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::Args1(arg1);
-    }
-}
-
-impl<Output> CallNativeFn<Output> for (i32, i32) {
-    fn set_execution_parameters((arg1, arg2): Self) {
-        *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::Args2(arg1, arg2);
-    }
-}
-
-impl<Output> CallNativeFn<Output> for (i32, i32, i32) {
-    fn set_execution_parameters((arg1, arg2, arg3): Self) {
-        *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::Args3(arg1, arg2, arg3);
-    }
-}
-
-impl<Output> CallNativeFn<Output> for (i32, i32, i32, i32) {
-    fn set_execution_parameters((arg1, arg2, arg3, arg4): Self) {
-        *EXECUTION_PARAMETERS.lock().unwrap() = HookParameters::Args4(arg1, arg2, arg3, arg4);
-    }
+    *EXECUTION_RESULT.lock().unwrap()
 }

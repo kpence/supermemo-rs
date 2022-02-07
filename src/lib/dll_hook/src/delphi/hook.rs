@@ -10,6 +10,32 @@ pub enum HookParameters {
     Args4(i32, i32, i32, i32),
 }
 
+impl From<()> for HookParameters {
+    fn from(_: ()) -> HookParameters { HookParameters::Args0 }
+}
+
+impl From<i32> for HookParameters {
+    fn from(arg1: i32) -> HookParameters { HookParameters::Args1(arg1) }
+}
+
+impl From<(i32, i32)> for HookParameters {
+    fn from((arg1, arg2): (i32, i32)) -> HookParameters {
+        HookParameters::Args2(arg1, arg2)
+    }
+}
+
+impl From<(i32, i32, i32)> for HookParameters {
+    fn from((arg1, arg2, arg3): (i32, i32, i32)) -> HookParameters {
+        HookParameters::Args3(arg1, arg2, arg3)
+    }
+}
+
+impl From<(i32, i32, i32, i32)> for HookParameters {
+    fn from((arg1, arg2, arg3, arg4): (i32, i32, i32, i32)) -> HookParameters {
+        HookParameters::Args4(arg1, arg2, arg3, arg4)
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum HookResult {
