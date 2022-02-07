@@ -18,6 +18,27 @@ pub enum HookResult {
 }
 
 #[allow(dead_code)]
+impl HookResult {
+    pub fn unwrap_i32(&self) -> i32 {
+        match *self {
+            HookResult::i32(result) => { result },
+            _ => {
+                panic!("Attempted to unwrap HookResult. Expected i32, got f64.");
+            },
+        }
+    }
+
+    pub fn unwrap_f64(&self) -> f64 {
+        match *self {
+            HookResult::f64(result) => { result },
+            _ => {
+                panic!("Attempted to unwrap HookResult. Expected f64, got i32.");
+            },
+        }
+    }
+}
+
+#[allow(dead_code)]
 pub enum FnSignature {
     Sig0,
     Sig1,

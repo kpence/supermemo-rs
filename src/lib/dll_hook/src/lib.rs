@@ -4,7 +4,6 @@ extern crate kernel32;
 extern crate libc;
 extern crate winapi;
 use delphi::*;
-//use dev_helpers::*;
 use call_native_fn::{
     CallNativeFn,
     EXECUTION_FINISH_EVENT_TRANSMITTER,
@@ -60,25 +59,13 @@ fn init() {
     *EXECUTION_FINISH_EVENT_TRANSMITTER.lock().unwrap() = Some(sender);
     *EXECUTION_FINISH_EVENT_RECEIVER.lock().unwrap() = Some(receiver);
 
-    //std::thread::sleep(std::time::Duration::from_secs(20));
-
     if false {
-        println!("\n\n\n\n\n\n\n\n\n\n\n\n---------------------------------------------------------------------------\n---------------------------------------------------------------------------Calling native function now!");
-
+        println!("\n\n\n\n\n\n\n\n\n-------------------------------------------------------------------------Calling native function now!");
         let result = <i32 as CallNativeFn<f64>>::call_native_fn(&((*MATH_STUFF).0), 5);
-        println!("\n\n\n\n\n\n\n\n\n\n\n\n---------------------------------------------------------------------------\n---------------------------------------------------------------------------directly after calling native function, now gonna wait!");
+        println!("\n\n\n\n\n\n\n\n\n--------------------------------------------------directly after calling native function, now gonna wait!");
         std::thread::sleep(std::time::Duration::from_secs(20));
-        println!("\n\n\n\n\n\n\n\n\n\n\n\n---------------------------------------------------------------------------\n---------------------------------------------------------------------------done sleeping");
-
-
-        match result {
-            HookResult::f64(ret_val) => {
-                println!("result is {}", ret_val);
-            },
-            _ => {
-                panic!("oh noes");
-            },
-        }
+        println!("\n\n\n\n\n\n\n\n\n--------------------------------------------------------------------------done sleeping");
+        println!("result is {}", result.unwrap_f64());
     }
 
     println!("Hooks enabled..");
