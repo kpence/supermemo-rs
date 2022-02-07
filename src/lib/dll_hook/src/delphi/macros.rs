@@ -24,6 +24,8 @@ macro_rules! hijack {
             unsafe extern "C" fn real_func($($ARG:$ARG_TY),*) -> $RET_TY {$($BLOCK)*}
         }
 
+        #[allow(unused_parens)]
+        #[allow(dead_code)]
         impl $HOOK_STRUCT_NAME {
             fn new(fn_addr: usize) -> Self {
                 Self(
@@ -37,7 +39,6 @@ macro_rules! hijack {
                 )
             }
 
-            #[allow(dead_code)]
             fn call_detour(&self, $($ARG:$ARG_TY),*) -> $RET_TY {
                 <($($ARG_TY),*) as RegisterCall<$RET_TY>>::register_call(
                     self.0.fn_addr,
@@ -45,7 +46,6 @@ macro_rules! hijack {
                 )
             }
 
-            #[allow(dead_code)]
             fn call_trampoline(&self, $($ARG:$ARG_TY),*) -> $RET_TY {
                 <($($ARG_TY),*) as RegisterCall<$RET_TY>>::register_call(
                     self.0.detour.trampoline() as *const _ as usize,
